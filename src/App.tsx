@@ -32,6 +32,7 @@ import { useToast } from './components/Toast'
 const repoUrl = 'https://github.com/baditaflorin/newsletter-flow'
 const paypalUrl = 'https://www.paypal.com/paypalme/florinbadita'
 const liveUrl = 'https://baditaflorin.github.io/newsletter-flow/'
+const commitApiUrl = 'https://api.github.com/repos/baditaflorin/newsletter-flow/commits/main'
 
 const blankSource: Omit<ResearchSource, 'id' | 'selected'> = {
   kind: 'note',
@@ -128,11 +129,28 @@ function updateWithTimestamp(project: NewsletterProject): NewsletterProject {
   return { ...project, updatedAt: nowIso() }
 }
 
+async function fetchLatestCommit() {
+  const response = await fetch(commitApiUrl, {
+    headers: { Accept: 'application/vnd.github+json' },
+  })
+
+  if (!response.ok) throw new Error(`GitHub commit lookup failed with ${response.status}`)
+
+  const payload = (await response.json()) as { sha?: string }
+  return payload.sha?.slice(0, 7) || __APP_COMMIT__
+}
+
 function App() {
   const { notify } = useToast()
   const { data, isLoading } = useQuery({
     queryKey: ['latest-project'],
     queryFn: loadLatestProject,
+  })
+  const { data: latestCommit } = useQuery({
+    queryKey: ['github-latest-commit'],
+    queryFn: fetchLatestCommit,
+    retry: false,
+    staleTime: 5 * 60 * 1000,
   })
 
   const [project, setProject] = useState<NewsletterProject | null>(null)
@@ -171,6 +189,7 @@ function App() {
     [project, searchQuery],
   )
   const selectedCount = project?.sources.filter((source) => source.selected).length ?? 0
+  const displayCommit = latestCommit ?? __APP_COMMIT__
   const unsplashUrl = `https://unsplash.com/s/photos/${encodeURIComponent(
     project?.imageBrief.keywords || 'newsletter writing desk',
   )}`
@@ -440,7 +459,7 @@ function App() {
                 Version {__APP_VERSION__}
               </span>
               <span className="border border-stone-300 bg-white px-3 py-2">
-                Commit {__APP_COMMIT__}
+                Commit {displayCommit}
               </span>
             </div>
           </div>
@@ -1011,7 +1030,7 @@ function App() {
       <footer className="border-t border-stone-200 bg-stone-950 text-stone-100">
         <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 px-4 py-5 text-sm sm:px-6 lg:px-8">
           <p>
-            Newsletter Flow v{__APP_VERSION__} · commit {__APP_COMMIT__}
+            Newsletter Flow v{__APP_VERSION__} · commit {displayCommit}
           </p>
           <div className="flex flex-wrap gap-3">
             <a className="hover:text-white" href={repoUrl} rel="noreferrer" target="_blank">

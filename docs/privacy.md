@@ -49,4 +49,8 @@ https://www.paypal.com/paypalme/florinbadita
 
 https://unsplash.com/
 
+The app also calls the public GitHub commits endpoint to display the latest `main` commit in the footer:
+
+https://api.github.com/repos/baditaflorin/newsletter-flow/commits/main
+
 Opening those sites is subject to their own privacy policies.
