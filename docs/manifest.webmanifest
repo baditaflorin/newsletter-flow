@@ -1,0 +1,17 @@
+{
+  "name": "Newsletter Flow",
+  "short_name": "Newsletter Flow",
+  "description": "Local-first writing desk for researching, drafting, polishing, and repurposing newsletters.",
+  "start_url": "/newsletter-flow/",
+  "scope": "/newsletter-flow/",
+  "display": "standalone",
+  "background_color": "#f7f4ef",
+  "theme_color": "#0f766e",
+  "icons": [
+    {
+      "src": "/newsletter-flow/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}
