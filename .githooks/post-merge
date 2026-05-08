@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+printf '%s\n' 'Post-merge: run npm install if package-lock.json changed.'

@@ -18,20 +18,13 @@ import {
   WandSparkles,
   X,
 } from 'lucide-react'
-import { loadLatestProject, resetProject, saveProject } from './db/projects'
-import {
-  analyzeDraft,
-  composeDraft,
-  generateImageBrief,
-  generateSubjectLines,
-  makePlatformExports,
-  polishDraft,
-} from './lib/generator'
-import { downloadText, projectFilename } from './lib/downloads'
+import { generateSubjectLines } from './features/audience'
+import { analyzeDraft, composeDraft, polishDraft, requestLocalLlm } from './features/drafting'
+import { downloadText, makePlatformExports, projectFilename } from './features/exports'
+import { generateImageBrief } from './features/images'
+import { parseRssItems, searchSources } from './features/research'
+import { loadLatestProject, resetProject, saveProject } from './features/workspace'
 import { makeId, nowIso } from './lib/ids'
-import { requestLocalLlm } from './lib/llm'
-import { parseRssItems } from './lib/rss'
-import { searchSources } from './lib/search'
 import { truncate } from './lib/text'
 import type { AudienceSegment, NewsletterProject, ResearchSource, SourceKind } from './types'
 import { useToast } from './components/Toast'
@@ -51,15 +44,7 @@ const blankSource: Omit<ResearchSource, 'id' | 'selected'> = {
   tags: [],
 }
 
-function Field({
-  label,
-  children,
-  hint,
-}: {
-  label: string
-  children: ReactNode
-  hint?: string
-}) {
+function Field({ label, children, hint }: { label: string; children: ReactNode; hint?: string }) {
   return (
     <label className="grid gap-2 text-sm font-medium text-stone-800">
       <span>{label}</span>
@@ -445,7 +430,11 @@ function App() {
             <div className="mt-5 flex flex-wrap items-center gap-2 text-xs text-stone-600">
               <span className="inline-flex items-center gap-2 border border-stone-300 bg-white px-3 py-2">
                 <Save className="h-4 w-4 text-teal-700" aria-hidden="true" />
-                {saveState === 'saved' ? 'Saved locally' : saveState === 'saving' ? 'Saving' : 'Ready'}
+                {saveState === 'saved'
+                  ? 'Saved locally'
+                  : saveState === 'saving'
+                    ? 'Saving'
+                    : 'Ready'}
               </span>
               <span className="border border-stone-300 bg-white px-3 py-2">
                 Version {__APP_VERSION__}
@@ -464,7 +453,10 @@ function App() {
               ['04', 'Polish', 'Readability and grammar pass'],
               ['05', 'Repurpose', 'Substack, X, LinkedIn'],
             ].map(([number, label, detail]) => (
-              <div className="grid grid-cols-[3rem_1fr] border border-stone-300 bg-white" key={label}>
+              <div
+                className="grid grid-cols-[3rem_1fr] border border-stone-300 bg-white"
+                key={label}
+              >
                 <span className="grid place-items-center bg-stone-950 text-sm font-bold text-white">
                   {number}
                 </span>
@@ -483,7 +475,11 @@ function App() {
         eyebrow="01 Capture"
         title="Idea Brief"
         actions={
-          <Button icon={<RefreshCw className="h-4 w-4" aria-hidden="true" />} onClick={startFresh} variant="secondary">
+          <Button
+            icon={<RefreshCw className="h-4 w-4" aria-hidden="true" />}
+            onClick={startFresh}
+            variant="secondary"
+          >
             New project
           </Button>
         }
@@ -539,7 +535,10 @@ function App() {
         title="Research Stack"
         actions={
           <div className="relative w-full max-w-sm">
-            <Search className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-stone-400" aria-hidden="true" />
+            <Search
+              className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-stone-400"
+              aria-hidden="true"
+            />
             <input
               aria-label="Search sources"
               className={inputClass('pl-9')}
@@ -557,14 +556,18 @@ function App() {
                 <input
                   className={inputClass()}
                   value={newSource.title}
-                  onChange={(event) => setNewSource((current) => ({ ...current, title: event.target.value }))}
+                  onChange={(event) =>
+                    setNewSource((current) => ({ ...current, title: event.target.value }))
+                  }
                 />
               </Field>
               <Field label="URL">
                 <input
                   className={inputClass()}
                   value={newSource.url}
-                  onChange={(event) => setNewSource((current) => ({ ...current, url: event.target.value }))}
+                  onChange={(event) =>
+                    setNewSource((current) => ({ ...current, url: event.target.value }))
+                  }
                 />
               </Field>
               <div className="grid gap-3 sm:grid-cols-2">
@@ -573,7 +576,10 @@ function App() {
                     className={inputClass()}
                     value={newSource.kind}
                     onChange={(event: ChangeEvent<HTMLSelectElement>) =>
-                      setNewSource((current) => ({ ...current, kind: event.target.value as SourceKind }))
+                      setNewSource((current) => ({
+                        ...current,
+                        kind: event.target.value as SourceKind,
+                      }))
                     }
                   >
                     <option value="note">Note</option>
@@ -602,17 +608,24 @@ function App() {
                 <textarea
                   className={inputClass('min-h-24 resize-y')}
                   value={newSource.summary}
-                  onChange={(event) => setNewSource((current) => ({ ...current, summary: event.target.value }))}
+                  onChange={(event) =>
+                    setNewSource((current) => ({ ...current, summary: event.target.value }))
+                  }
                 />
               </Field>
               <Field label="Content">
                 <textarea
                   className={inputClass('min-h-28 resize-y')}
                   value={newSource.content}
-                  onChange={(event) => setNewSource((current) => ({ ...current, content: event.target.value }))}
+                  onChange={(event) =>
+                    setNewSource((current) => ({ ...current, content: event.target.value }))
+                  }
                 />
               </Field>
-              <Button icon={<BookOpenText className="h-4 w-4" aria-hidden="true" />} onClick={addSource}>
+              <Button
+                icon={<BookOpenText className="h-4 w-4" aria-hidden="true" />}
+                onClick={addSource}
+              >
                 Add source
               </Button>
             </div>
@@ -656,7 +669,10 @@ function App() {
                     ) : null}
                   </div>
                   <div className="flex gap-2">
-                    <Button onClick={() => toggleSource(source.id)} variant={source.selected ? 'primary' : 'secondary'}>
+                    <Button
+                      onClick={() => toggleSource(source.id)}
+                      variant={source.selected ? 'primary' : 'secondary'}
+                    >
                       {source.selected ? 'Selected' : 'Use'}
                     </Button>
                     <Button
@@ -669,11 +685,16 @@ function App() {
                     </Button>
                   </div>
                 </div>
-                <p className="mt-3 text-sm text-stone-700">{source.summary || truncate(source.content, 220)}</p>
+                <p className="mt-3 text-sm text-stone-700">
+                  {source.summary || truncate(source.content, 220)}
+                </p>
                 {source.tags.length ? (
                   <div className="mt-3 flex flex-wrap gap-2">
                     {source.tags.map((tag) => (
-                      <span className="border border-teal-200 bg-teal-50 px-2 py-1 text-xs text-teal-900" key={tag}>
+                      <span
+                        className="border border-teal-200 bg-teal-50 px-2 py-1 text-xs text-teal-900"
+                        key={tag}
+                      >
                         {tag}
                       </span>
                     ))}
@@ -717,10 +738,14 @@ function App() {
               className={inputClass('min-h-[32rem] resize-y font-mono text-sm leading-6')}
               data-testid="draft-editor"
               value={project.draft}
-              onChange={(event) => updateProject((current) => ({ ...current, draft: event.target.value }))}
+              onChange={(event) =>
+                updateProject((current) => ({ ...current, draft: event.target.value }))
+              }
             />
             {llmError ? (
-              <p className="border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950">{llmError}</p>
+              <p className="border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950">
+                {llmError}
+              </p>
             ) : null}
           </div>
           <aside className="grid content-start gap-3">
@@ -762,7 +787,10 @@ function App() {
         eyebrow="04 Image"
         title="Image Brief"
         actions={
-          <Button icon={<ImageIcon className="h-4 w-4" aria-hidden="true" />} onClick={refreshImageBrief}>
+          <Button
+            icon={<ImageIcon className="h-4 w-4" aria-hidden="true" />}
+            onClick={refreshImageBrief}
+          >
             Refresh brief
           </Button>
         }
@@ -837,7 +865,11 @@ function App() {
         eyebrow="05 Segment"
         title="Subject Lines"
         actions={
-          <Button icon={<Check className="h-4 w-4" aria-hidden="true" />} onClick={addSegment} variant="secondary">
+          <Button
+            icon={<Check className="h-4 w-4" aria-hidden="true" />}
+            onClick={addSegment}
+            variant="secondary"
+          >
             Add segment
           </Button>
         }
@@ -845,7 +877,10 @@ function App() {
         <div className="grid gap-5 lg:grid-cols-[0.9fr_1.1fr]">
           <div className="grid gap-3 content-start">
             {project.segments.map((segment) => (
-              <article className="grid gap-3 border border-stone-200 bg-stone-50 p-4" key={segment.id}>
+              <article
+                className="grid gap-3 border border-stone-200 bg-stone-50 p-4"
+                key={segment.id}
+              >
                 <Field label="Name">
                   <input
                     className={inputClass()}
@@ -864,7 +899,9 @@ function App() {
                   <input
                     className={inputClass()}
                     value={segment.desiredOutcome}
-                    onChange={(event) => updateSegment(segment.id, 'desiredOutcome', event.target.value)}
+                    onChange={(event) =>
+                      updateSegment(segment.id, 'desiredOutcome', event.target.value)
+                    }
                   />
                 </Field>
                 <Button onClick={() => removeSegment(segment.id)} variant="ghost">
@@ -879,7 +916,10 @@ function App() {
                 <h3 className="font-semibold text-stone-950">{group.segment}</h3>
                 <ul className="mt-3 grid gap-2">
                   {group.lines.map((line) => (
-                    <li className="flex items-start justify-between gap-3 border border-stone-100 bg-stone-50 p-3" key={line}>
+                    <li
+                      className="flex items-start justify-between gap-3 border border-stone-100 bg-stone-50 p-3"
+                      key={line}
+                    >
                       <span className="text-sm text-stone-800">{line}</span>
                       <button
                         aria-label={`Copy subject line ${line}`}
@@ -907,13 +947,21 @@ function App() {
             <Button
               data-testid="export-substack"
               icon={<Download className="h-4 w-4" aria-hidden="true" />}
-              onClick={() => downloadText(projectFilename(project.name, 'md'), exports.substack, 'text/markdown')}
+              onClick={() =>
+                downloadText(projectFilename(project.name, 'md'), exports.substack, 'text/markdown')
+              }
             >
               Markdown
             </Button>
             <Button
               icon={<Download className="h-4 w-4" aria-hidden="true" />}
-              onClick={() => downloadText(projectFilename(project.name, 'json'), exports.projectJson, 'application/json')}
+              onClick={() =>
+                downloadText(
+                  projectFilename(project.name, 'json'),
+                  exports.projectJson,
+                  'application/json',
+                )
+              }
               variant="secondary"
             >
               Project JSON
@@ -950,7 +998,11 @@ function App() {
             readOnly
             value={activeExportText}
           />
-          <Button icon={<Copy className="h-4 w-4" aria-hidden="true" />} onClick={() => copyText(activeExportText, 'Export')} variant="secondary">
+          <Button
+            icon={<Copy className="h-4 w-4" aria-hidden="true" />}
+            onClick={() => copyText(activeExportText, 'Export')}
+            variant="secondary"
+          >
             Copy current export
           </Button>
         </div>

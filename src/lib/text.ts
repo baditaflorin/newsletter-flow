@@ -27,10 +27,12 @@ export function sentenceSplit(input: string) {
 }
 
 export function wordTokens(input: string) {
-  return input
-    .toLowerCase()
-    .match(/[a-z0-9][a-z0-9'-]*/g)
-    ?.filter((word) => word.length > 2) ?? []
+  return (
+    input
+      .toLowerCase()
+      .match(/[a-z0-9][a-z0-9'-]*/g)
+      ?.filter((word) => word.length > 2) ?? []
+  )
 }
 
 export function truncate(input: string, maxLength: number) {
