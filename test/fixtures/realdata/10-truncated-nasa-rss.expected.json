@@ -1,0 +1,10 @@
+{
+  "fixtureId": "10-truncated-nasa-rss",
+  "expect": {
+    "inputKind": "rss",
+    "recoverPartial": true,
+    "minSources": 1,
+    "warningsInclude": ["TRUNCATED_INPUT"],
+    "errorSeverity": "recoverable"
+  }
+}

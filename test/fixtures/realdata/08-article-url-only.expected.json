@@ -1,0 +1,11 @@
+{
+  "fixtureId": "08-article-url-only",
+  "expect": {
+    "inputKind": "url",
+    "shape": "url_only_source",
+    "minSources": 1,
+    "selectedCount": 0,
+    "warningsInclude": ["URL_ONLY_NO_CONTENT"],
+    "mustNotCreateEmptySelectedSource": true
+  }
+}

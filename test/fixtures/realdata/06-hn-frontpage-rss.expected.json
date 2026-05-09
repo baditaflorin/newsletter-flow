@@ -1,0 +1,11 @@
+{
+  "fixtureId": "06-hn-frontpage-rss",
+  "expect": {
+    "inputKind": "rss",
+    "shape": "aggregator_feed",
+    "minSources": 5,
+    "tagsInclude": ["aggregator"],
+    "warningsIncludeAny": ["METADATA_HEAVY_SOURCE", "LOW_CONTENT_CONFIDENCE"],
+    "preserveDiscussionUrl": true
+  }
+}

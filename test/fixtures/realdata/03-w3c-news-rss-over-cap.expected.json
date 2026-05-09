@@ -1,0 +1,13 @@
+{
+  "fixtureId": "03-w3c-news-rss-over-cap",
+  "expect": {
+    "inputKind": "rss",
+    "minSources": 20,
+    "importReport": {
+      "found": 25,
+      "imported": 20,
+      "skipped": 5
+    },
+    "warningsInclude": ["IMPORT_CAPPED"]
+  }
+}

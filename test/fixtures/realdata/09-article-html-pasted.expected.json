@@ -1,0 +1,11 @@
+{
+  "fixtureId": "09-article-html-pasted",
+  "expect": {
+    "inputKind": "html",
+    "shape": "article_html",
+    "minSources": 1,
+    "titleIncludes": "llm-gemini",
+    "tagsInclude": ["article"],
+    "minConfidence": 0.7
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "fixtureId": "04-simon-willison-atom-over-cap",
+  "expect": {
+    "inputKind": "atom",
+    "minSources": 20,
+    "importReport": {
+      "found": 30,
+      "imported": 20,
+      "skipped": 10
+    },
+    "warningsInclude": ["IMPORT_CAPPED"],
+    "preservesCodeSignals": true
+  }
+}

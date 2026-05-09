@@ -1,0 +1,14 @@
+{
+  "fixtureId": "02-nasa-news-rss",
+  "expect": {
+    "inputKind": "rss",
+    "shape": "feed",
+    "minSources": 3,
+    "importReport": {
+      "mustDiscloseFoundImportedSkipped": true
+    },
+    "selectedPolicy": "ranked_by_relevance",
+    "normalizedDates": true,
+    "warningsIncludeAny": []
+  }
+}

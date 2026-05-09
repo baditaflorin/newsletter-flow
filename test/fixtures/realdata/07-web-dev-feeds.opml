@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<opml version="1.0">
+  <head><title>A collection of RSS feeds for web development</title></head>
+  <body>
+    <outline text="HTMHell" title="HTMHell" type="rss" xmlUrl="https://www.htmhell.dev/feed.xml" />
+    <outline text="Defensive CSS" title="Defensive CSS" type="rss" xmlUrl="https://defensivecss.dev/feed/feed.xml" />
+    <outline text="Testing Accessibility" title="Build &#38; Test Accessible Web Apps | Testing Accessibility" type="rss" xmlUrl="https://testingaccessibility.com/rss.xml" htmlUrl="https://testingaccessibility.com" />
+    <outline text="HTMHell Tips &#38; Tricks" title="HTMHell Tips &#38; Tricks" type="rss" xmlUrl="https://www.htmhell.dev/feed_tips.xml" />
+    <outline text="Web Components bookmarks" title="Web Components bookmarks" type="rss" xmlUrl="https://webcomponents.today/feed.xml" />
+    <outline text="Bite-sized Accessibility" title="Bite-sized Accessibility" type="rss" xmlUrl="https://bite-sized-a11y.com/feed.xml" />
+    <outline text="CSS Tip: Learn CSS the easy one" title="CSS Tip: Learn CSS the easy one" type="rss" xmlUrl="https://css-tip.com/feed/feed.xml" />
+    <outline text="MDN Blog" title="MDN Blog" type="rss" xmlUrl="https://developer.mozilla.org/en-US/blog/rss.xml" htmlUrl="https://developer.mozilla.org/en-US/blog/" />
+    <outline text="The Wikipedia Web team blog" title="Leave it to the prose" type="rss" xmlUrl="https://phabricator.wikimedia.org/phame/blog/feed/9/" />
+    <outline text="IETF Blog" title="IETF Blog" type="rss" xmlUrl="http://www.ietf.org/blog/feed/" htmlUrl="http://www.ietf.org/blog/" />
+    <outline text="[[WM:TECHBLOG]]" title="[[WM:TECHBLOG]]" type="rss" xmlUrl="http://techblog.wikimedia.org/feed/" htmlUrl="https://techblog.wikimedia.org" />
+    <outline text="Knowbility Blog" title="Knowbility Blog" type="rss" xmlUrl="https://knowbility.org/feed.xml" htmlUrl="https://knowbility.org/blog" />
+  </body>
+</opml>

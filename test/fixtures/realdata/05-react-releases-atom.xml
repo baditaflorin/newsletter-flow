@@ -1,0 +1,43 @@
+<feed id="tag:github.com,2008:https://github.com/facebook/react/releases" title="Release notes from react" updated="2026-05-06T14:23:32Z" xmlns="http://www.w3.org/2005/Atom" xmlns:media="http://search.yahoo.com/mrss/" xml:lang="en-US">
+  <link type="text/html" rel="alternate" href="https://github.com/facebook/react/releases"></link>
+  <link type="application/atom+xml" rel="self" href="https://github.com/facebook/react/releases.atom"></link>
+  <entry id="tag:github.com,2008:Repository/10270250/v19.2.6" updated="2026-05-06T17:33:20Z" title="19.2.6 (May 6th, 2026)">
+    <link rel="alternate" type="text/html" href="https://github.com/facebook/react/releases/tag/v19.2.6"></link>
+    <content type="html">&lt;h2&gt;React Server Components&lt;/h2&gt;
+&lt;ul&gt;
+&lt;li&gt;Type hardening and performance improvements&lt;br&gt;
+(&lt;a href=&quot;https://github.com/facebook/react/pull/36425&quot; data-hovercard-type=&quot;pull_request&quot; data-hovercard-url=&quot;/facebook/react/pull/36425/hovercard&quot;&gt;#36425&lt;/a&gt; by &lt;a class=&quot;user-mention notranslate&quot; data-hovercard-type=&quot;user&quot; data-hovercard-url=&quot;/users/eps1lon/hovercard&quot; data-octo-click=&quot;hovercard-link-click&quot; data-octo-dimensions=&quot;link_type:self&quot; href=&quot;https://github.com/eps1lon&quot;&gt;@eps1lon&lt;/a&gt; and &lt;a class=&quot;user-mention notranslate&quot; data-hovercard-type=&quot;user&quot; data-hovercard-url=&quot;/users/unstubbable/hovercard&quot; data-octo-click=&quot;hovercard-link-click&quot; data-octo-dimensions=&quot;link_type:self&quot; href=&quot;https://github.com/unstubbable&quot;&gt;@unstubbable&lt;/a&gt;)&lt;/li&gt;
+&lt;/ul&gt;</content>
+    <author name="eps1lon"></author>
+    <media:thumbnail height="30" width="30" url="https://avatars.githubusercontent.com/u/12292047?s=60&amp;v=4"></media:thumbnail>
+  </entry>
+  <entry id="tag:github.com,2008:Repository/10270250/v19.1.7" updated="2026-05-06T17:33:35Z" title="19.1.7 (May 6th, 2026)">
+    <link rel="alternate" type="text/html" href="https://github.com/facebook/react/releases/tag/v19.1.7"></link>
+    <content type="html">&lt;h2&gt;React Server Components&lt;/h2&gt;
+&lt;ul&gt;
+&lt;li&gt;Type hardening and performance improvements&lt;br&gt;
+(&lt;a href=&quot;https://github.com/facebook/react/pull/36425&quot; data-hovercard-type=&quot;pull_request&quot; data-hovercard-url=&quot;/facebook/react/pull/36425/hovercard&quot;&gt;#36425&lt;/a&gt; by &lt;a class=&quot;user-mention notranslate&quot; data-hovercard-type=&quot;user&quot; data-hovercard-url=&quot;/users/eps1lon/hovercard&quot; data-octo-click=&quot;hovercard-link-click&quot; data-octo-dimensions=&quot;link_type:self&quot; href=&quot;https://github.com/eps1lon&quot;&gt;@eps1lon&lt;/a&gt; and &lt;a class=&quot;user-mention notranslate&quot; data-hovercard-type=&quot;user&quot; data-hovercard-url=&quot;/users/unstubbable/hovercard&quot; data-octo-click=&quot;hovercard-link-click&quot; data-octo-dimensions=&quot;link_type:self&quot; href=&quot;https://github.com/unstubbable&quot;&gt;@unstubbable&lt;/a&gt;)&lt;/li&gt;
+&lt;/ul&gt;</content>
+    <author name="eps1lon"></author>
+    <media:thumbnail height="30" width="30" url="https://avatars.githubusercontent.com/u/12292047?s=60&amp;v=4"></media:thumbnail>
+  </entry>
+  <entry id="tag:github.com,2008:Repository/10270250/v19.0.6" updated="2026-05-06T17:33:39Z" title="19.0.6 (May 6th, 2026)">
+    <link rel="alternate" type="text/html" href="https://github.com/facebook/react/releases/tag/v19.0.6"></link>
+    <content type="html">&lt;h2&gt;React Server Components&lt;/h2&gt;
+&lt;ul&gt;
+&lt;li&gt;Type hardening and performance improvements&lt;br&gt;
+(&lt;a href=&quot;https://github.com/facebook/react/pull/36425&quot; data-hovercard-type=&quot;pull_request&quot; data-hovercard-url=&quot;/facebook/react/pull/36425/hovercard&quot;&gt;#36425&lt;/a&gt; by &lt;a class=&quot;user-mention notranslate&quot; data-hovercard-type=&quot;user&quot; data-hovercard-url=&quot;/users/eps1lon/hovercard&quot; data-octo-click=&quot;hovercard-link-click&quot; data-octo-dimensions=&quot;link_type:self&quot; href=&quot;https://github.com/eps1lon&quot;&gt;@eps1lon&lt;/a&gt; and &lt;a class=&quot;user-mention notranslate&quot; data-hovercard-type=&quot;user&quot; data-hovercard-url=&quot;/users/unstubbable/hovercard&quot; data-octo-click=&quot;hovercard-link-click&quot; data-octo-dimensions=&quot;link_type:self&quot; href=&quot;https://github.com/unstubbable&quot;&gt;@unstubbable&lt;/a&gt;)&lt;/li&gt;
+&lt;/ul&gt;</content>
+    <author name="eps1lon"></author>
+    <media:thumbnail height="30" width="30" url="https://avatars.githubusercontent.com/u/12292047?s=60&amp;v=4"></media:thumbnail>
+  </entry>
+  <entry id="tag:github.com,2008:Repository/10270250/eslint-plugin-react-hooks@7.1.1" updated="2026-04-17T20:51:48Z" title="eslint-plugin-react-hooks@7.1.1 (April 17, 2026)">
+    <link rel="alternate" type="text/html" href="https://github.com/facebook/react/releases/tag/eslint-plugin-react-hooks%407.1.1"></link>
+    <content type="html">&lt;p&gt;&lt;strong&gt;Note:&lt;/strong&gt; 7.1.0 accidentally removed the &lt;code&gt;component-hook-factories&lt;/code&gt; rule, causing errors for users who referenced it in their ESLint config. This is now fixed.&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;Add deprecated no-op &lt;code&gt;component-hook-factories&lt;/code&gt; rule for backwards compatibility. (&lt;a href=&quot;https://github.com/mofeiZ&quot;&gt;@mofeiZ&lt;/a&gt; in &lt;a href=&quot;https://github.com/facebook/react/pull/36307&quot; data-hovercard-type=&quot;pull_request&quot; data-hovercard-url=&quot;/facebook/react/pull/36307/hovercard&quot;&gt;#36307&lt;/a&gt;)&lt;/li&gt;
+&lt;/ul&gt;</content>
+    <author name="mofeiZ"></author>
+    <media:thumbnail height="30" width="30" url="https://avatars.githubusercontent.com/u/34200447?s=60&amp;v=4"></media:thumbnail>
+  </entry>
+</feed>

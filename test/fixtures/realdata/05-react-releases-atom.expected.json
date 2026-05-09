@@ -1,0 +1,10 @@
+{
+  "fixtureId": "05-react-releases-atom",
+  "expect": {
+    "inputKind": "atom",
+    "shape": "release_notes",
+    "minSources": 4,
+    "tagsInclude": ["release-notes"],
+    "extractVersionSignals": true
+  }
+}

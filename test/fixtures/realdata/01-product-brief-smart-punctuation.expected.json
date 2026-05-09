@@ -1,0 +1,10 @@
+{
+  "fixtureId": "01-product-brief-smart-punctuation",
+  "expect": {
+    "inputKind": "idea_brief",
+    "minConfidence": 0.7,
+    "ideaFields": ["workingTitle", "audience", "angle", "promise"],
+    "tagsInclude": ["workflow", "cost"],
+    "mustNotCreateEmptySelectedSource": true
+  }
+}

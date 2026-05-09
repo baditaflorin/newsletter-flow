@@ -1,0 +1,2 @@
+The "newsletter writer's daily flow" — Substack free + Grammarly ($144) + Buffer ($180) + Unsplash+ ($60) + ConvertKit metrics... + ChatGPT ($240) = $624/yr+
+Tantivy + a local LLM + ImageMagick + Pandoc + sentence-transformers + RSS parsers. Idea capture → research → draft → image generation/selection → grammar polish → cross-platform formatting (Substack, X thread, LinkedIn) → audience-segment subject lines.

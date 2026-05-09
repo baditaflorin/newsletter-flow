@@ -1,0 +1,10 @@
+{
+  "fixtureId": "07-web-dev-feeds",
+  "expect": {
+    "inputKind": "opml",
+    "shape": "subscription_list",
+    "minSources": 8,
+    "warningsInclude": ["OPML_FEED_URLS_ONLY"],
+    "nextStepIncludes": "import feed URLs"
+  }
+}
