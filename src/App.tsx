@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ChangeEvent, type ReactNode } from 'react'
+import { useEffect, useMemo, useRef, useState, type ChangeEvent, type ReactNode } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import {
   BadgeDollarSign,
@@ -8,6 +8,7 @@ import {
   Download,
   ExternalLink,
   ImageIcon,
+  Info,
   Mail,
   RefreshCw,
   Rss,
@@ -22,11 +23,19 @@ import { generateSubjectLines } from './features/audience'
 import { analyzeDraft, composeDraft, polishDraft, requestLocalLlm } from './features/drafting'
 import { downloadText, makePlatformExports, projectFilename } from './features/exports'
 import { generateImageBrief } from './features/images'
-import { parseRssItems, searchSources } from './features/research'
+import { analyzeNewsletterInputCached, inputCacheStats, searchSources } from './features/research'
 import { loadLatestProject, resetProject, saveProject } from './features/workspace'
 import { makeId, nowIso } from './lib/ids'
 import { truncate } from './lib/text'
-import type { AudienceSegment, NewsletterProject, ResearchSource, SourceKind } from './types'
+import type {
+  ActivityEntry,
+  AudienceSegment,
+  InferenceResult,
+  NewsletterProject,
+  ResearchSource,
+  SourceKind,
+  SourceShape,
+} from './types'
 import { useToast } from './components/Toast'
 
 const repoUrl = 'https://github.com/baditaflorin/newsletter-flow'
@@ -129,6 +138,23 @@ function updateWithTimestamp(project: NewsletterProject): NewsletterProject {
   return { ...project, updatedAt: nowIso() }
 }
 
+function makeActivity(
+  action: string,
+  summary: string,
+  severity: ActivityEntry['severity'] = 'info',
+  metadata?: ActivityEntry['metadata'],
+): ActivityEntry {
+  return { id: makeId('activity'), at: nowIso(), action, summary, severity, metadata }
+}
+
+function appendActivity(project: NewsletterProject, entry: ActivityEntry) {
+  return { ...project, activity: [entry, ...(project.activity ?? [])].slice(0, 80) }
+}
+
+function sourceHasEvidence(source: ResearchSource) {
+  return Boolean(source.title.trim() && (source.content.trim() || source.summary.trim()))
+}
+
 async function fetchLatestCommit() {
   const response = await fetch(commitApiUrl, {
     headers: { Accept: 'application/vnd.github+json' },
@@ -156,12 +182,29 @@ function App() {
   const [project, setProject] = useState<NewsletterProject | null>(null)
   const [newSource, setNewSource] = useState(blankSource)
   const [rssXml, setRssXml] = useState('')
-  const [rssError, setRssError] = useState('')
+  const [inputAnalysis, setInputAnalysis] = useState<InferenceResult | null>(null)
+  const [importState, setImportState] = useState<
+    | 'import-idle'
+    | 'import-analyzing'
+    | 'import-ready'
+    | 'import-committing'
+    | 'imported-with-warnings'
+    | 'error-recoverable'
+    | 'cancelled'
+  >('import-idle')
+  const [selectionPreferences, setSelectionPreferences] = useState<
+    Partial<Record<SourceShape, boolean>>
+  >({})
   const [searchQuery, setSearchQuery] = useState('')
   const [activeExport, setActiveExport] = useState<'substack' | 'x' | 'linkedin'>('substack')
   const [saveState, setSaveState] = useState<'ready' | 'saving' | 'saved' | 'error'>('ready')
   const [llmError, setLlmError] = useState('')
   const [isLlmBusy, setIsLlmBusy] = useState(false)
+  const importOperationRef = useRef(0)
+  const isDebug = useMemo(
+    () => new URLSearchParams(window.location.search).get('debug') === '1',
+    [],
+  )
 
   useEffect(() => {
     if (data) {
@@ -181,6 +224,47 @@ function App() {
     return () => window.clearTimeout(timeout)
   }, [project])
 
+  useEffect(() => {
+    if (!project) return
+    const raw = rssXml
+    if (!raw.trim()) {
+      setInputAnalysis(null)
+      setImportState('import-idle')
+      return
+    }
+
+    const operationId = importOperationRef.current + 1
+    importOperationRef.current = operationId
+    setImportState('import-analyzing')
+
+    const timeout = window.setTimeout(() => {
+      if (importOperationRef.current !== operationId) return
+      try {
+        const analysis = analyzeNewsletterInputCached(raw, project)
+        const sources = analysis.sources.map((source) => {
+          const shape = source.provenance?.shape
+          const preference = shape ? selectionPreferences[shape] : undefined
+          if (!shape || preference === undefined) return source
+          return {
+            ...source,
+            selected: preference && sourceHasEvidence(source),
+            reasoning: [
+              ...(source.reasoning ?? []),
+              `Applied your session preference for ${shape.replaceAll('_', ' ')} sources.`,
+            ],
+          }
+        })
+        setInputAnalysis({ ...analysis, sources })
+        setImportState('import-ready')
+      } catch {
+        setInputAnalysis(null)
+        setImportState('error-recoverable')
+      }
+    }, 120)
+
+    return () => window.clearTimeout(timeout)
+  }, [project, rssXml, selectionPreferences])
+
   const analysis = useMemo(() => analyzeDraft(project?.draft ?? ''), [project?.draft])
   const exports = useMemo(() => (project ? makePlatformExports(project) : null), [project])
   const subjectLines = useMemo(() => (project ? generateSubjectLines(project) : []), [project])
@@ -190,6 +274,12 @@ function App() {
   )
   const selectedCount = project?.sources.filter((source) => source.selected).length ?? 0
   const displayCommit = latestCommit ?? __APP_COMMIT__
+  const workspaceState =
+    !project?.sources.length && !project?.draft
+      ? 'loaded-empty'
+      : (project?.sources.length ?? 0) > 100
+        ? 'loaded-many'
+        : 'loaded-some'
   const unsplashUrl = `https://unsplash.com/s/photos/${encodeURIComponent(
     project?.imageBrief.keywords || 'newsletter writing desk',
   )}`
@@ -228,26 +318,117 @@ function App() {
       selected: true,
       title: newSource.title.trim() || 'Untitled note',
       tags: newSource.tags,
+      confidence: {
+        score: newSource.content.trim() || newSource.summary.trim() ? 0.72 : 0.44,
+        label: newSource.content.trim() || newSource.summary.trim() ? 'medium' : 'low',
+        reasons: ['Manually added source.'],
+      },
+      issues: sourceHasEvidence({
+        ...newSource,
+        id: 'preview',
+        selected: true,
+        title: newSource.title.trim() || 'Untitled note',
+      })
+        ? []
+        : [
+            {
+              code: 'LOW_CONTENT_CONFIDENCE',
+              severity: 'warning',
+              what: 'This source has little usable evidence.',
+              why: 'A title alone is not enough to support a newsletter claim.',
+              nextStep: 'Add a summary or excerpt before using it in a draft.',
+            },
+          ],
+      provenance: {
+        inputKind: 'plain_text',
+        shape: newSource.kind === 'article' ? 'article_text' : 'brief',
+        inputHash: `manual-${makeId('input')}`,
+        sourceIndex: 0,
+        originalUrl: newSource.url || undefined,
+      },
+      reasoning: ['Added manually by the user.'],
     }
-    updateProject((current) => ({ ...current, sources: [source, ...current.sources] }))
+    updateProject((current) =>
+      appendActivity(
+        { ...current, sources: [source, ...current.sources] },
+        makeActivity('source-added', `Manual source added: ${source.title}`, 'info'),
+      ),
+    )
     setNewSource(blankSource)
     notify('Source added to the research stack.')
   }
 
-  function importRss() {
-    setRssError('')
-    try {
-      const items = parseRssItems(rssXml).slice(0, 20)
-      if (!items.length) {
-        setRssError('No RSS or Atom entries were found in that XML.')
-        return
+  function cancelImport() {
+    importOperationRef.current += 1
+    setRssXml('')
+    setInputAnalysis(null)
+    setImportState('cancelled')
+    updateProject((current) =>
+      appendActivity(
+        current,
+        makeActivity('import-cancelled', 'Source input analysis was cancelled.', 'info'),
+      ),
+    )
+  }
+
+  function commitInference() {
+    if (!inputAnalysis) return
+    setImportState('import-committing')
+    updateProject((current) => {
+      if (inputAnalysis.importedProject) {
+        return appendActivity(
+          {
+            ...inputAnalysis.importedProject,
+            activity: inputAnalysis.importedProject.activity ?? [],
+            updatedAt: nowIso(),
+          },
+          makeActivity(
+            'project-imported',
+            'Project JSON was imported from the research input box.',
+            'info',
+          ),
+        )
       }
-      updateProject((current) => ({ ...current, sources: [...items, ...current.sources] }))
-      setRssXml('')
-      notify(`${items.length} RSS items imported.`)
-    } catch (error) {
-      setRssError(error instanceof Error ? error.message : 'RSS import failed.')
-    }
+
+      const suggestedIdea = inputAnalysis.suggestedIdea
+      const nextSources = inputAnalysis.sources.filter(sourceHasEvidence)
+      const merged = {
+        ...current,
+        name: suggestedIdea?.workingTitle || current.name,
+        idea: suggestedIdea
+          ? {
+              ...current.idea,
+              ...Object.fromEntries(
+                Object.entries(suggestedIdea).filter(
+                  ([, value]) => typeof value === 'string' && value.trim(),
+                ),
+              ),
+            }
+          : current.idea,
+        sources: [...nextSources, ...current.sources],
+      }
+      return appendActivity(
+        merged,
+        makeActivity(
+          'input-imported',
+          `${inputAnalysis.inputKind.replaceAll('_', ' ')} import committed with ${nextSources.length} source${nextSources.length === 1 ? '' : 's'}.`,
+          inputAnalysis.issues.some((issue) => issue.severity !== 'info') ? 'warning' : 'info',
+          {
+            found: inputAnalysis.report.found,
+            imported: nextSources.length,
+            skipped: inputAnalysis.report.skipped,
+          },
+        ),
+      )
+    })
+    setRssXml('')
+    setInputAnalysis(null)
+    setImportState(inputAnalysis.issues.length ? 'imported-with-warnings' : 'import-idle')
+    notify(
+      inputAnalysis.issues.length
+        ? `${inputAnalysis.report.imported} source guesses imported with warnings.`
+        : `${inputAnalysis.report.imported} source guesses imported.`,
+    )
   }
 
   function toggleSource(id: string) {
@@ -257,6 +438,11 @@ function App() {
         source.id === id ? { ...source, selected: !source.selected } : source,
       ),
     }))
+    const source = project?.sources.find((item) => item.id === id)
+    const shape = source?.provenance?.shape
+    if (shape) {
+      setSelectionPreferences((current) => ({ ...current, [shape]: !source.selected }))
+    }
   }
 
   function removeSource(id: string) {
@@ -303,7 +489,14 @@ function App() {
     const fallback = composeDraft(project)
 
     if (!project.llm.enabled) {
-      updateProject((current) => ({ ...current, draft: fallback }))
+      updateProject((current) =>
+        appendActivity(
+          { ...current, draft: fallback },
+          makeActivity('draft-generated', 'Draft generated from selected local evidence.', 'info', {
+            selectedSources: current.sources.filter((source) => source.selected).length,
+          }),
+        ),
+      )
       notify('Draft generated locally.')
       return
     }
@@ -323,11 +516,29 @@ function App() {
           2,
         )}`,
       })
-      updateProject((current) => ({ ...current, draft: llmDraft }))
+      updateProject((current) =>
+        appendActivity(
+          { ...current, draft: llmDraft },
+          makeActivity(
+            'draft-generated',
+            'Draft generated with the configured local LLM endpoint.',
+            'info',
+          ),
+        ),
+      )
       notify('Draft generated with your local LLM.')
     } catch (error) {
       setLlmError(error instanceof Error ? error.message : 'Local LLM request failed.')
-      updateProject((current) => ({ ...current, draft: fallback }))
+      updateProject((current) =>
+        appendActivity(
+          { ...current, draft: fallback },
+          makeActivity(
+            'draft-fallback',
+            'Local LLM failed; deterministic local draft was used instead.',
+            'recoverable',
+          ),
+        ),
+      )
       notify('Local LLM was unavailable, so a local template draft was used.')
     } finally {
       setIsLlmBusy(false)
@@ -346,7 +557,16 @@ function App() {
           model: project.llm.model,
           prompt: `Polish this newsletter draft for clarity, active voice, and rhythm. Keep Markdown headings and do not add fake citations:\n\n${project.draft}`,
         })
-        updateProject((current) => ({ ...current, draft: polished }))
+        updateProject((current) =>
+          appendActivity(
+            { ...current, draft: polished },
+            makeActivity(
+              'draft-polished',
+              'Draft polished with the configured local LLM endpoint.',
+              'info',
+            ),
+          ),
+        )
         notify('Draft polished with your local LLM.')
         return
       } catch (error) {
@@ -357,7 +577,12 @@ function App() {
     }
 
     const result = polishDraft(project.draft)
-    updateProject((current) => ({ ...current, draft: result.text }))
+    updateProject((current) =>
+      appendActivity(
+        { ...current, draft: result.text },
+        makeActivity('draft-polished', result.notes.join(' '), 'info'),
+      ),
+    )
     notify(result.notes.join(' '))
   }
 
@@ -365,7 +590,14 @@ function App() {
     if (!project) return
     const brief = generateImageBrief(project)
     updateProject((current) => ({
-      ...current,
+      ...appendActivity(
+        current,
+        makeActivity(
+          'image-brief-refreshed',
+          'Image brief refreshed from current idea and source tags.',
+          'info',
+        ),
+      ),
       imageBrief: { ...current.imageBrief, ...brief },
     }))
     notify('Image brief refreshed from the current idea and sources.')
@@ -373,7 +605,20 @@ function App() {
 
   async function copyText(text: string, label: string) {
     await navigator.clipboard.writeText(text)
+    updateProject((current) =>
+      appendActivity(
+        current,
+        makeActivity('export-copied', `${label} copied to clipboard.`, 'info'),
+      ),
+    )
     notify(`${label} copied.`)
+  }
+
+  function downloadExport(filename: string, contents: string, type: string, label: string) {
+    downloadText(filename, contents, type)
+    updateProject((current) =>
+      appendActivity(current, makeActivity('export-downloaded', `${label} downloaded.`, 'info')),
+    )
   }
 
   async function startFresh() {
@@ -650,21 +895,106 @@ function App() {
             </div>
 
             <div className="grid gap-3 border border-stone-200 bg-stone-50 p-4">
-              <Field label="Paste RSS or Atom XML">
+              <Field
+                label="Paste source input"
+                hint="Briefs, RSS, Atom, OPML, article HTML, article text, URL-only sources, and project JSON are detected automatically."
+              >
                 <textarea
                   className={inputClass('min-h-32 resize-y')}
+                  data-testid="source-input"
+                  placeholder="Paste a feed, article, URL, OPML list, or rough newsletter brief."
                   value={rssXml}
                   onChange={(event) => setRssXml(event.target.value)}
                 />
               </Field>
-              {rssError ? <p className="text-sm text-rose-700">{rssError}</p> : null}
+              {importState === 'import-analyzing' ? (
+                <p className="flex items-center gap-2 text-sm text-stone-700">
+                  <RefreshCw className="h-4 w-4 animate-spin" aria-hidden="true" />
+                  Reading source shape...
+                </p>
+              ) : null}
+              {inputAnalysis ? (
+                <div
+                  className="grid gap-3 border border-teal-200 bg-white p-3"
+                  data-testid="input-preview"
+                >
+                  <div className="flex flex-wrap items-center gap-2 text-xs">
+                    <span className="border border-stone-300 bg-stone-50 px-2 py-1 font-semibold uppercase text-stone-700">
+                      {inputAnalysis.inputKind.replaceAll('_', ' ')}
+                    </span>
+                    <span className="border border-stone-300 bg-stone-50 px-2 py-1">
+                      {inputAnalysis.shape.replaceAll('_', ' ')}
+                    </span>
+                    <span className="border border-stone-300 bg-stone-50 px-2 py-1">
+                      confidence {inputAnalysis.confidence.label} ({inputAnalysis.confidence.score})
+                    </span>
+                    <span className="border border-stone-300 bg-stone-50 px-2 py-1">
+                      {inputAnalysis.report.found} found · {inputAnalysis.report.imported} ready ·{' '}
+                      {inputAnalysis.report.skipped} skipped
+                    </span>
+                  </div>
+                  {inputAnalysis.issues.length ? (
+                    <div className="grid gap-2">
+                      {inputAnalysis.issues.map((issue) => (
+                        <div
+                          className="border border-amber-200 bg-amber-50 p-2 text-sm text-amber-950"
+                          key={issue.code}
+                        >
+                          <strong>{issue.what}</strong>
+                          <p>{issue.why}</p>
+                          <p className="font-medium">{issue.nextStep}</p>
+                        </div>
+                      ))}
+                    </div>
+                  ) : null}
+                  {inputAnalysis.suggestedIdea ? (
+                    <div className="grid gap-1 text-sm text-stone-700">
+                      <p className="font-semibold text-stone-950">Idea fields inferred</p>
+                      {Object.entries(inputAnalysis.suggestedIdea).map(([key, value]) =>
+                        value ? (
+                          <p key={key}>
+                            <span className="font-medium">{key}:</span>{' '}
+                            {truncate(String(value), 140)}
+                          </p>
+                        ) : null,
+                      )}
+                    </div>
+                  ) : null}
+                  {inputAnalysis.sources.length ? (
+                    <div className="grid gap-2">
+                      <p className="text-sm font-semibold text-stone-950">First source guesses</p>
+                      {inputAnalysis.sources.slice(0, 3).map((source) => (
+                        <div
+                          className="border border-stone-200 bg-stone-50 p-2 text-sm"
+                          key={source.id}
+                        >
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <span className="font-medium text-stone-950">{source.title}</span>
+                            <span className="text-xs text-stone-600">
+                              {source.selected ? 'selected' : 'review first'} ·{' '}
+                              {source.confidence?.label ?? 'low'}
+                            </span>
+                          </div>
+                          <p className="mt-1 text-stone-600">{source.summary}</p>
+                        </div>
+                      ))}
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
               <Button
                 icon={<Rss className="h-4 w-4" aria-hidden="true" />}
-                onClick={importRss}
+                onClick={commitInference}
+                disabled={!inputAnalysis || importState === 'import-committing'}
                 variant="secondary"
               >
-                Import RSS
+                Import detected input
               </Button>
+              {rssXml ? (
+                <Button onClick={cancelImport} variant="ghost">
+                  Cancel import
+                </Button>
+              ) : null}
             </div>
           </div>
 
@@ -673,7 +1003,12 @@ function App() {
               <article className="border border-stone-200 bg-white p-4" key={source.id}>
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <p className="text-xs font-bold uppercase text-stone-500">{source.kind}</p>
+                    <p className="text-xs font-bold uppercase text-stone-500">
+                      {source.kind}
+                      {source.provenance?.shape
+                        ? ` · ${source.provenance.shape.replaceAll('_', ' ')}`
+                        : ''}
+                    </p>
                     <h3 className="mt-1 text-lg font-semibold text-stone-950">{source.title}</h3>
                     {source.url ? (
                       <a
@@ -707,6 +1042,39 @@ function App() {
                 <p className="mt-3 text-sm text-stone-700">
                   {source.summary || truncate(source.content, 220)}
                 </p>
+                <div className="mt-3 flex flex-wrap gap-2 text-xs">
+                  <span className="border border-stone-200 bg-stone-50 px-2 py-1 text-stone-700">
+                    confidence {source.confidence?.label ?? 'low'} ({source.confidence?.score ?? 0})
+                  </span>
+                  {source.provenance?.publishedAtIso ? (
+                    <span className="border border-stone-200 bg-stone-50 px-2 py-1 text-stone-700">
+                      {source.provenance.publishedAtIso.slice(0, 10)}
+                    </span>
+                  ) : null}
+                  {source.provenance?.discussionUrl ? (
+                    <a
+                      className="border border-stone-200 bg-stone-50 px-2 py-1 text-teal-700"
+                      href={source.provenance.discussionUrl}
+                      rel="noreferrer"
+                      target="_blank"
+                    >
+                      discussion
+                    </a>
+                  ) : null}
+                </div>
+                {source.issues?.length ? (
+                  <div className="mt-3 grid gap-2">
+                    {source.issues.map((issue) => (
+                      <div
+                        className="border border-amber-200 bg-amber-50 p-2 text-sm text-amber-950"
+                        key={issue.code}
+                      >
+                        <strong>{issue.what}</strong>
+                        <p>{issue.nextStep}</p>
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
                 {source.tags.length ? (
                   <div className="mt-3 flex flex-wrap gap-2">
                     {source.tags.map((tag) => (
@@ -718,6 +1086,18 @@ function App() {
                       </span>
                     ))}
                   </div>
+                ) : null}
+                {source.reasoning?.length ? (
+                  <details className="mt-3 text-sm text-stone-600">
+                    <summary className="cursor-pointer font-medium text-stone-800">
+                      Why this source looks this way
+                    </summary>
+                    <ul className="mt-2 grid gap-1">
+                      {source.reasoning.map((reason) => (
+                        <li key={reason}>{reason}</li>
+                      ))}
+                    </ul>
+                  </details>
                 ) : null}
               </article>
             ))}
@@ -967,7 +1347,12 @@ function App() {
               data-testid="export-substack"
               icon={<Download className="h-4 w-4" aria-hidden="true" />}
               onClick={() =>
-                downloadText(projectFilename(project.name, 'md'), exports.substack, 'text/markdown')
+                downloadExport(
+                  projectFilename(project.name, 'md'),
+                  exports.substack,
+                  'text/markdown',
+                  'Markdown export',
+                )
               }
             >
               Markdown
@@ -975,10 +1360,11 @@ function App() {
             <Button
               icon={<Download className="h-4 w-4" aria-hidden="true" />}
               onClick={() =>
-                downloadText(
+                downloadExport(
                   projectFilename(project.name, 'json'),
                   exports.projectJson,
                   'application/json',
+                  'Project JSON export',
                 )
               }
               variant="secondary"
@@ -1026,6 +1412,41 @@ function App() {
           </Button>
         </div>
       </Section>
+
+      {isDebug ? (
+        <section className="border-t border-stone-200 bg-stone-100">
+          <div className="mx-auto grid max-w-7xl gap-4 px-4 py-6 text-sm sm:px-6 lg:px-8">
+            <div className="flex items-center gap-2 font-semibold text-stone-950">
+              <Info className="h-4 w-4" aria-hidden="true" />
+              Debug surface
+            </div>
+            <pre className="max-h-96 overflow-auto border border-stone-300 bg-white p-4 text-xs leading-5 text-stone-800">
+              {JSON.stringify(
+                {
+                  version: __APP_VERSION__,
+                  commit: displayCommit,
+                  projectId: project.id,
+                  workspaceState,
+                  importState,
+                  lastInference: inputAnalysis
+                    ? {
+                        inputKind: inputAnalysis.inputKind,
+                        shape: inputAnalysis.shape,
+                        confidence: inputAnalysis.confidence,
+                        report: inputAnalysis.report,
+                        issues: inputAnalysis.issues.map((issue) => issue.code),
+                      }
+                    : null,
+                  cache: inputCacheStats(),
+                  activity: (project.activity ?? []).slice(0, 12),
+                },
+                null,
+                2,
+              )}
+            </pre>
+          </div>
+        </section>
+      ) : null}
 
       <footer className="border-t border-stone-200 bg-stone-950 text-stone-100">
         <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 px-4 py-5 text-sm sm:px-6 lg:px-8">

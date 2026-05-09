@@ -1,5 +1,6 @@
 import type {
   DraftAnalysis,
+  ExportMetadata,
   NewsletterProject,
   PlatformExports,
   PolishResult,
@@ -16,6 +17,37 @@ const passivePattern = /\b(am|is|are|was|were|be|being|been)\s+\w+ed\b/gi
 function selectedSources(project: NewsletterProject) {
   const selected = project.sources.filter((source) => source.selected)
   return selected.length ? selected : project.sources.slice(0, 5)
+}
+
+function confidenceSummary(project: NewsletterProject): ExportMetadata['confidenceSummary'] {
+  return project.sources.reduce(
+    (summary, source) => {
+      const label = source.confidence?.label ?? 'low'
+      summary[label] += 1
+      return summary
+    },
+    { high: 0, medium: 0, low: 0 },
+  )
+}
+
+export function makeExportMetadata(
+  project: NewsletterProject,
+  generatedAt = new Date().toISOString(),
+): ExportMetadata {
+  const selected = project.sources.filter((source) => source.selected)
+  const appVersion = typeof __APP_VERSION__ === 'undefined' ? 'test' : __APP_VERSION__
+  return {
+    appVersion,
+    schemaVersion: PROJECT_SCHEMA_VERSION,
+    generatedAt,
+    sourceIds: selected.map((source) => source.id).sort(),
+    confidenceSummary: confidenceSummary(project),
+    parameters: {
+      selectedSourceCount: selected.length,
+      totalSourceCount: project.sources.length,
+      exportFormats: ['substack', 'x-thread', 'linkedin', 'project-json'],
+    },
+  }
 }
 
 function sourceBullets(sources: ResearchSource[]) {
@@ -206,10 +238,23 @@ What part of your publishing workflow still feels heavier than it should?`
 
 export function makePlatformExports(project: NewsletterProject): PlatformExports {
   const draft = project.draft || composeDraft(project)
+  const metadata = makeExportMetadata(project)
+  const provenanceComment = `<!-- newsletter-flow ${JSON.stringify(metadata)} -->`
+  const projectExport = {
+    schemaVersion: PROJECT_SCHEMA_VERSION,
+    exportedAt: metadata.generatedAt,
+    metadata,
+    project: {
+      ...project,
+      schemaVersion: PROJECT_SCHEMA_VERSION,
+    },
+  }
+
   return {
-    substack: draft,
+    substack: `${provenanceComment}\n\n${draft}`,
     xThread: makeXThread(draft),
     linkedIn: makeLinkedInPost(project, draft),
-    projectJson: JSON.stringify({ schemaVersion: PROJECT_SCHEMA_VERSION, project }, null, 2),
+    projectJson: JSON.stringify(projectExport, null, 2),
+    metadata,
   }
 }

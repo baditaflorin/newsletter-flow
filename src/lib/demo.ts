@@ -30,6 +30,19 @@ export function createDefaultProject(): NewsletterProject {
           'Substack free, Grammarly $144, Buffer $180, Unsplash+ $60, ConvertKit metrics, ChatGPT $240. The real cost is context switching across tools.',
         tags: ['cost', 'workflow'],
         selected: true,
+        confidence: {
+          score: 0.9,
+          label: 'high',
+          reasons: ['Curated demo note with title, summary, and content.'],
+        },
+        issues: [],
+        provenance: {
+          inputKind: 'plain_text',
+          shape: 'brief',
+          inputHash: 'demo-cost-baseline',
+          sourceIndex: 0,
+        },
+        reasoning: ['Seeded source for the default workspace.'],
       },
       {
         id: makeId('source'),
@@ -44,6 +57,19 @@ export function createDefaultProject(): NewsletterProject {
           'IndexedDB stores projects. MiniSearch provides local research search. Optional local LLM calls keep AI use private. Markdown and social posts are generated client-side.',
         tags: ['local-first', 'privacy'],
         selected: true,
+        confidence: {
+          score: 0.9,
+          label: 'high',
+          reasons: ['Curated demo note with title, summary, and content.'],
+        },
+        issues: [],
+        provenance: {
+          inputKind: 'plain_text',
+          shape: 'brief',
+          inputHash: 'demo-local-first',
+          sourceIndex: 1,
+        },
+        reasoning: ['Seeded source for the default workspace.'],
       },
     ],
     segments: [
@@ -80,6 +106,15 @@ export function createDefaultProject(): NewsletterProject {
       model: 'llama3.2',
       enabled: false,
     },
+    activity: [
+      {
+        id: makeId('activity'),
+        at: createdAt,
+        action: 'project-created',
+        summary: 'Default local-first newsletter workspace created.',
+        severity: 'info',
+      },
+    ],
     createdAt,
     updatedAt: createdAt,
   }
