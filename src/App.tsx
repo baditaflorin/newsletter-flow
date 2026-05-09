@@ -227,6 +227,7 @@ function App() {
   const [fileImportRows, setFileImportRows] = useState<FileImportRow[]>([])
   const [isDraggingSource, setIsDraggingSource] = useState(false)
   const [shareStatus, setShareStatus] = useState('')
+  const [shareUrlPreview, setShareUrlPreview] = useState('')
   const importOperationRef = useRef(0)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const hashImportRef = useRef(false)
@@ -237,30 +238,37 @@ function App() {
 
   useEffect(() => {
     if (data) {
-      if (!hashImportRef.current && window.location.hash.startsWith('#project=')) {
-        hashImportRef.current = true
-        try {
-          const shared = parseProjectShareHash(window.location.hash)
-          if (shared) {
-            setProject(
-              appendActivity(
-                { ...shared, updatedAt: nowIso() },
-                makeActivity('project-imported', 'Project imported from a share URL.', 'info'),
-              ),
-            )
-            window.history.replaceState(null, '', window.location.pathname + window.location.search)
-            notify('Shared project loaded into this browser.')
-            setSaveState('saved')
-            return
-          }
-        } catch {
-          notify('That share link could not be read. Ask for a project JSON backup instead.')
-        }
-      }
+      if (hashImportRef.current) return
       setProject(data)
       setSaveState('saved')
     }
-  }, [data, notify])
+  }, [data])
+
+  useEffect(() => {
+    const importProjectFromHash = () => {
+      if (!window.location.hash.startsWith('#project=')) return
+      try {
+        const shared = parseProjectShareHash(window.location.hash)
+        if (!shared) return
+        hashImportRef.current = true
+        setProject(
+          appendActivity(
+            { ...shared, updatedAt: nowIso() },
+            makeActivity('project-imported', 'Project imported from a share URL.', 'info'),
+          ),
+        )
+        window.history.replaceState(null, '', window.location.pathname + window.location.search)
+        notify('Shared project loaded into this browser.')
+        setSaveState('saved')
+      } catch {
+        notify('That share link could not be read. Ask for a project JSON backup instead.')
+      }
+    }
+
+    importProjectFromHash()
+    window.addEventListener('hashchange', importProjectFromHash)
+    return () => window.removeEventListener('hashchange', importProjectFromHash)
+  }, [notify])
 
   useEffect(() => {
     if (!project) return
@@ -856,6 +864,7 @@ function App() {
         ? `This project is too large for a share URL (${share.bytes}/${share.maxBytes} bytes). Download Project JSON instead.`
         : `Share URL ready (${share.bytes}/${share.maxBytes} bytes).`,
     )
+    setShareUrlPreview(share.tooLarge ? '' : share.url)
     if (share.tooLarge) {
       notify('This project is too large for a share URL. Download Project JSON instead.')
       return
@@ -1692,9 +1701,18 @@ function App() {
             ))}
           </div>
           {shareStatus ? (
-            <p className="border border-stone-200 bg-stone-50 p-3 text-sm text-stone-700">
-              {shareStatus}
-            </p>
+            <div className="grid gap-2 border border-stone-200 bg-stone-50 p-3 text-sm text-stone-700">
+              <p>{shareStatus}</p>
+              {shareUrlPreview ? (
+                <input
+                  aria-label="Share URL"
+                  className={inputClass('font-mono text-xs')}
+                  data-testid="share-url-output"
+                  readOnly
+                  value={shareUrlPreview}
+                />
+              ) : null}
+            </div>
           ) : null}
           <textarea
             aria-label="Selected export"
