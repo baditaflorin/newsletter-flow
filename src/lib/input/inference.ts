@@ -1,7 +1,5 @@
 import { XMLParser } from 'fast-xml-parser'
-import { z } from 'zod'
 import {
-  PROJECT_SCHEMA_VERSION,
   type Idea,
   type InferenceResult,
   type InputKind,
@@ -9,6 +7,7 @@ import {
   type ResearchSource,
   type SourceShape,
 } from '../../types'
+import { parseProjectPayload } from '../project-schema'
 import { truncate, wordTokens } from '../text'
 import { confidence, confidenceFromSource } from './confidence'
 import { stableHash, stableSourceId } from './hash'
@@ -32,16 +31,6 @@ const parser = new XMLParser({
   trimValues: true,
 })
 const cache = new Map<string, InferenceResult>()
-
-const projectExportSchema = z.object({
-  schemaVersion: z.string(),
-  project: z.object({
-    id: z.string(),
-    name: z.string(),
-    idea: z.record(z.string(), z.unknown()),
-    sources: z.array(z.record(z.string(), z.unknown())),
-  }),
-})
 
 function asArray<T>(value: T | T[] | undefined): T[] {
   if (!value) return []
@@ -438,10 +427,11 @@ function sourceFromPlainText(
 }
 
 function fromProjectJson(input: string) {
-  const parsed = JSON.parse(input) as unknown
-  const result = projectExportSchema.safeParse(parsed)
-  if (!result.success) return undefined
-  return result.data.project as unknown as NewsletterProject
+  try {
+    return parseProjectPayload(input)
+  } catch {
+    return undefined
+  }
 }
 
 function result(
@@ -534,10 +524,7 @@ export function analyzeNewsletterInput(
     const importedProject = fromProjectJson(normalizedInput)
     if (importedProject) {
       return result('project_json', 'project_export', inputHash, normalizedInput, startedAt, [], {
-        importedProject: {
-          ...importedProject,
-          schemaVersion: importedProject.schemaVersion || PROJECT_SCHEMA_VERSION,
-        },
+        importedProject,
         confidence: confidence(0.9, ['Project JSON export schema matched.']),
         reasoning: ['Detected Newsletter Flow project JSON.'],
       })

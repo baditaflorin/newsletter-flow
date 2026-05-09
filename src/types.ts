@@ -1,4 +1,4 @@
-export const PROJECT_SCHEMA_VERSION = 'newsletter-flow.project.v2'
+export const PROJECT_SCHEMA_VERSION = 'newsletter-flow.project.v3'
 
 export type SourceKind = 'note' | 'article' | 'rss'
 export type InputKind =

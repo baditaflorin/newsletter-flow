@@ -52,3 +52,39 @@ select:focus-visible {
   color: #0f172a;
   background: #fde68a;
 }
+
+@media print {
+  header,
+  footer,
+  nav,
+  #idea,
+  #research,
+  #image,
+  #audience,
+  #settings,
+  button,
+  [role='tablist'] {
+    display: none !important;
+  }
+
+  body,
+  main,
+  section,
+  textarea {
+    color: #111827 !important;
+    background: #ffffff !important;
+  }
+
+  #draft,
+  #exports {
+    display: block !important;
+    border: 0 !important;
+  }
+
+  textarea {
+    min-height: auto !important;
+    border: 0 !important;
+    padding: 0 !important;
+    white-space: pre-wrap;
+  }
+}

@@ -8,6 +8,7 @@ import type {
   SubjectLine,
 } from '../types'
 import { PROJECT_SCHEMA_VERSION } from '../types'
+import { projectToJson } from './project-schema'
 import { sentenceSplit, truncate, wordTokens } from './text'
 
 const hedges = ['maybe', 'probably', 'basically', 'actually', 'just', 'very', 'really', 'somewhat']
@@ -240,21 +241,11 @@ export function makePlatformExports(project: NewsletterProject): PlatformExports
   const draft = project.draft || composeDraft(project)
   const metadata = makeExportMetadata(project)
   const provenanceComment = `<!-- newsletter-flow ${JSON.stringify(metadata)} -->`
-  const projectExport = {
-    schemaVersion: PROJECT_SCHEMA_VERSION,
-    exportedAt: metadata.generatedAt,
-    metadata,
-    project: {
-      ...project,
-      schemaVersion: PROJECT_SCHEMA_VERSION,
-    },
-  }
-
   return {
     substack: `${provenanceComment}\n\n${draft}`,
     xThread: makeXThread(draft),
     linkedIn: makeLinkedInPost(project, draft),
-    projectJson: JSON.stringify(projectExport, null, 2),
+    projectJson: projectToJson(project, metadata),
     metadata,
   }
 }

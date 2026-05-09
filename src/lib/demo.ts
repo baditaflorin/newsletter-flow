@@ -1,12 +1,67 @@
 import { PROJECT_SCHEMA_VERSION, type NewsletterProject } from '../types'
 import { makeId, nowIso } from './ids'
 
+function baseProject(name: string, createdAt = nowIso()): NewsletterProject {
+  return {
+    id: makeId('project'),
+    schemaVersion: PROJECT_SCHEMA_VERSION,
+    name,
+    idea: {
+      workingTitle: '',
+      audience: '',
+      angle: '',
+      promise: '',
+      notes: '',
+    },
+    sources: [],
+    segments: [
+      {
+        id: makeId('segment'),
+        name: 'General reader',
+        painPoint: 'needs a clear reason to open',
+        desiredOutcome: 'gets one useful takeaway quickly',
+      },
+    ],
+    draft: '',
+    imageBrief: {
+      keywords: 'newsletter writing desk',
+      mood: 'clear editorial workspace',
+      prompt: 'Editorial image for a newsletter draft.',
+      selectedUrl: '',
+      altText: 'Newsletter image.',
+    },
+    llm: {
+      endpoint: 'http://localhost:11434',
+      model: 'llama3.2',
+      enabled: false,
+    },
+    activity: [],
+    createdAt,
+    updatedAt: createdAt,
+  }
+}
+
+export function createBlankProject(): NewsletterProject {
+  const createdAt = nowIso()
+  return {
+    ...baseProject('Untitled newsletter project', createdAt),
+    activity: [
+      {
+        id: makeId('activity'),
+        at: createdAt,
+        action: 'blank-project-created',
+        summary: 'Blank local newsletter workspace created.',
+        severity: 'info',
+      },
+    ],
+  }
+}
+
 export function createDefaultProject(): NewsletterProject {
   const createdAt = nowIso()
 
   return {
-    id: makeId('project'),
-    schemaVersion: PROJECT_SCHEMA_VERSION,
+    ...baseProject('Friday dispatch', createdAt),
     name: 'Friday dispatch',
     idea: {
       workingTitle: 'The Local-First Newsletter Workflow',
@@ -92,7 +147,6 @@ export function createDefaultProject(): NewsletterProject {
         desiredOutcome: 'local control over notes, drafts, and AI settings',
       },
     ],
-    draft: '',
     imageBrief: {
       keywords: 'writer desk notes local first newsletter workflow',
       mood: 'clean editorial workspace, warm daylight, focused',
@@ -100,11 +154,6 @@ export function createDefaultProject(): NewsletterProject {
         'An editorial desk with handwritten notes, RSS cards, a laptop draft, and subtle publishing icons, warm natural light, realistic, uncluttered.',
       selectedUrl: '',
       altText: 'A focused writing desk arranged around a newsletter publishing workflow.',
-    },
-    llm: {
-      endpoint: 'http://localhost:11434',
-      model: 'llama3.2',
-      enabled: false,
     },
     activity: [
       {
@@ -115,7 +164,5 @@ export function createDefaultProject(): NewsletterProject {
         severity: 'info',
       },
     ],
-    createdAt,
-    updatedAt: createdAt,
   }
 }

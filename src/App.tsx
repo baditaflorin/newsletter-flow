@@ -24,8 +24,16 @@ import { analyzeDraft, composeDraft, polishDraft, requestLocalLlm } from './feat
 import { downloadText, makePlatformExports, projectFilename } from './features/exports'
 import { generateImageBrief } from './features/images'
 import { analyzeNewsletterInputCached, inputCacheStats, searchSources } from './features/research'
-import { loadLatestProject, resetProject, saveProject } from './features/workspace'
+import {
+  clearLocalProjects,
+  createBlankWorkspace,
+  loadLatestProject,
+  resetProject,
+  saveProject,
+} from './features/workspace'
 import { makeId, nowIso } from './lib/ids'
+import { makeProjectShareUrl, parseProjectShareHash } from './lib/project-io'
+import { parseSourceKind, sourceHasEvidence, sourceKindOptions } from './lib/sources'
 import { truncate } from './lib/text'
 import type {
   ActivityEntry,
@@ -33,7 +41,6 @@ import type {
   InferenceResult,
   NewsletterProject,
   ResearchSource,
-  SourceKind,
   SourceShape,
 } from './types'
 import { useToast } from './components/Toast'
@@ -41,6 +48,24 @@ import { useToast } from './components/Toast'
 const repoUrl = 'https://github.com/baditaflorin/newsletter-flow'
 const paypalUrl = 'https://www.paypal.com/paypalme/florinbadita'
 const liveUrl = 'https://baditaflorin.github.io/newsletter-flow/'
+const supportedFileExtensions = [
+  '.txt',
+  '.md',
+  '.markdown',
+  '.xml',
+  '.rss',
+  '.atom',
+  '.opml',
+  '.html',
+  '.htm',
+  '.json',
+]
+const exportTabs = [
+  { id: 'substack', label: 'Substack' },
+  { id: 'x', label: 'X thread' },
+  { id: 'linkedin', label: 'LinkedIn' },
+] as const
+type ExportTabId = (typeof exportTabs)[number]['id']
 
 const blankSource: Omit<ResearchSource, 'id' | 'selected'> = {
   kind: 'note',
@@ -150,8 +175,25 @@ function appendActivity(project: NewsletterProject, entry: ActivityEntry) {
   return { ...project, activity: [entry, ...(project.activity ?? [])].slice(0, 80) }
 }
 
-function sourceHasEvidence(source: ResearchSource) {
-  return Boolean(source.title.trim() && (source.content.trim() || source.summary.trim()))
+interface FileImportRow {
+  name: string
+  status: 'imported' | 'skipped' | 'error'
+  summary: string
+}
+
+interface TextPayload {
+  name: string
+  text: string
+}
+
+function isSupportedTextFile(file: File) {
+  const name = file.name.toLowerCase()
+  return (
+    file.type.startsWith('text/') ||
+    file.type === 'application/json' ||
+    file.type.includes('xml') ||
+    supportedFileExtensions.some((extension) => name.endsWith(extension))
+  )
 }
 
 function App() {
@@ -178,11 +220,16 @@ function App() {
     Partial<Record<SourceShape, boolean>>
   >({})
   const [searchQuery, setSearchQuery] = useState('')
-  const [activeExport, setActiveExport] = useState<'substack' | 'x' | 'linkedin'>('substack')
+  const [activeExport, setActiveExport] = useState<ExportTabId>('substack')
   const [saveState, setSaveState] = useState<'ready' | 'saving' | 'saved' | 'error'>('ready')
   const [llmError, setLlmError] = useState('')
   const [isLlmBusy, setIsLlmBusy] = useState(false)
+  const [fileImportRows, setFileImportRows] = useState<FileImportRow[]>([])
+  const [isDraggingSource, setIsDraggingSource] = useState(false)
+  const [shareStatus, setShareStatus] = useState('')
   const importOperationRef = useRef(0)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const hashImportRef = useRef(false)
   const isDebug = useMemo(
     () => new URLSearchParams(window.location.search).get('debug') === '1',
     [],
@@ -190,10 +237,30 @@ function App() {
 
   useEffect(() => {
     if (data) {
+      if (!hashImportRef.current && window.location.hash.startsWith('#project=')) {
+        hashImportRef.current = true
+        try {
+          const shared = parseProjectShareHash(window.location.hash)
+          if (shared) {
+            setProject(
+              appendActivity(
+                { ...shared, updatedAt: nowIso() },
+                makeActivity('project-imported', 'Project imported from a share URL.', 'info'),
+              ),
+            )
+            window.history.replaceState(null, '', window.location.pathname + window.location.search)
+            notify('Shared project loaded into this browser.')
+            setSaveState('saved')
+            return
+          }
+        } catch {
+          notify('That share link could not be read. Ask for a project JSON backup instead.')
+        }
+      }
       setProject(data)
       setSaveState('saved')
     }
-  }, [data])
+  }, [data, notify])
 
   useEffect(() => {
     if (!project) return
@@ -292,6 +359,154 @@ function App() {
     }))
   }
 
+  function commitAnalyses(payloads: TextPayload[]) {
+    if (!project) return
+    const rows: FileImportRow[] = []
+    const analyses = payloads.map((payload) => ({
+      payload,
+      analysis: analyzeNewsletterInputCached(payload.text, project),
+    }))
+
+    if (analyses.length === 1 && analyses[0].analysis.importedProject) {
+      const imported = analyses[0].analysis.importedProject
+      setProject(
+        appendActivity(
+          { ...imported, updatedAt: nowIso() },
+          makeActivity(
+            'project-imported',
+            `Project imported from ${analyses[0].payload.name}.`,
+            'info',
+          ),
+        ),
+      )
+      setFileImportRows([
+        {
+          name: analyses[0].payload.name,
+          status: 'imported',
+          summary: 'Project state restored from JSON.',
+        },
+      ])
+      notify('Project JSON imported.')
+      return
+    }
+
+    updateProject((current) => {
+      let next = current
+      for (const { payload, analysis: result } of analyses) {
+        if (result.importedProject) {
+          rows.push({
+            name: payload.name,
+            status: 'skipped',
+            summary: 'Project JSON is only imported when it is the only selected file.',
+          })
+          continue
+        }
+        const nextSources = result.sources.filter(sourceHasEvidence)
+        if (!nextSources.length) {
+          rows.push({
+            name: payload.name,
+            status: result.issues.length ? 'error' : 'skipped',
+            summary: result.issues[0]?.what ?? 'No usable source evidence was found in this file.',
+          })
+          continue
+        }
+        next = {
+          ...next,
+          name: result.suggestedIdea?.workingTitle || next.name,
+          idea: result.suggestedIdea
+            ? {
+                ...next.idea,
+                ...Object.fromEntries(
+                  Object.entries(result.suggestedIdea).filter(
+                    ([, value]) => typeof value === 'string' && value.trim(),
+                  ),
+                ),
+              }
+            : next.idea,
+          sources: [...nextSources, ...next.sources],
+        }
+        rows.push({
+          name: payload.name,
+          status: 'imported',
+          summary: `${nextSources.length} source${nextSources.length === 1 ? '' : 's'} imported as ${result.shape.replaceAll('_', ' ')}.`,
+        })
+      }
+
+      return appendActivity(
+        next,
+        makeActivity(
+          'files-imported',
+          `${rows.filter((row) => row.status === 'imported').length}/${rows.length} file imports completed.`,
+          rows.some((row) => row.status === 'error') ? 'warning' : 'info',
+        ),
+      )
+    })
+    setFileImportRows(rows)
+    notify(
+      `${rows.filter((row) => row.status === 'imported').length}/${rows.length} file imports completed.`,
+    )
+  }
+
+  async function importFiles(files: FileList | File[]) {
+    const fileList = Array.from(files)
+    if (!fileList.length) return
+    const rows: FileImportRow[] = []
+    const payloads: TextPayload[] = []
+
+    for (const file of fileList) {
+      if (!isSupportedTextFile(file)) {
+        rows.push({
+          name: file.name,
+          status: 'skipped',
+          summary: 'Unsupported file type. Use TXT, Markdown, XML, RSS, Atom, OPML, HTML, or JSON.',
+        })
+        continue
+      }
+      if (file.size > 3_000_000) {
+        rows.push({
+          name: file.name,
+          status: 'skipped',
+          summary: 'File is larger than the 3 MB browser import budget.',
+        })
+        continue
+      }
+      try {
+        payloads.push({ name: file.name, text: await file.text() })
+      } catch {
+        rows.push({
+          name: file.name,
+          status: 'error',
+          summary: 'The browser could not read this file. Try pasting its contents instead.',
+        })
+      }
+    }
+
+    setFileImportRows(rows)
+    if (payloads.length) {
+      commitAnalyses(payloads)
+    } else if (rows.length) {
+      notify('No supported files were imported.')
+    }
+  }
+
+  async function readClipboardIntoInput() {
+    if (!navigator.clipboard?.readText) {
+      notify('Clipboard read is unavailable here. Paste into the source input box instead.')
+      return
+    }
+    try {
+      const text = await navigator.clipboard.readText()
+      if (!text.trim()) {
+        notify('Clipboard is empty. Paste source text or choose a file.')
+        return
+      }
+      setRssXml(text)
+      notify('Clipboard text loaded for preview.')
+    } catch {
+      notify('Clipboard permission was blocked. Paste into the source input box instead.')
+    }
+  }
+
   function addSource() {
     if (!newSource.title.trim() && !newSource.content.trim()) return
     const source: ResearchSource = {
@@ -306,10 +521,9 @@ function App() {
         reasons: ['Manually added source.'],
       },
       issues: sourceHasEvidence({
-        ...newSource,
-        id: 'preview',
-        selected: true,
         title: newSource.title.trim() || 'Untitled note',
+        summary: newSource.summary,
+        content: newSource.content,
       })
         ? []
         : [
@@ -586,14 +800,18 @@ function App() {
   }
 
   async function copyText(text: string, label: string) {
-    await navigator.clipboard.writeText(text)
-    updateProject((current) =>
-      appendActivity(
-        current,
-        makeActivity('export-copied', `${label} copied to clipboard.`, 'info'),
-      ),
-    )
-    notify(`${label} copied.`)
+    try {
+      await navigator.clipboard.writeText(text)
+      updateProject((current) =>
+        appendActivity(
+          current,
+          makeActivity('export-copied', `${label} copied to clipboard.`, 'info'),
+        ),
+      )
+      notify(`${label} copied.`)
+    } catch {
+      notify(`Could not copy ${label}. Select the text and copy it manually.`)
+    }
   }
 
   function downloadExport(filename: string, contents: string, type: string, label: string) {
@@ -606,7 +824,53 @@ function App() {
   async function startFresh() {
     const fresh = await resetProject()
     setProject(fresh)
-    notify('A fresh project is ready.')
+    setRssXml('')
+    setInputAnalysis(null)
+    setFileImportRows([])
+    notify('The demo project is ready.')
+  }
+
+  async function startBlankProject() {
+    const fresh = await createBlankWorkspace()
+    setProject(fresh)
+    setRssXml('')
+    setInputAnalysis(null)
+    setFileImportRows([])
+    notify('A blank project is ready.')
+  }
+
+  async function clearLocalData() {
+    const fresh = await clearLocalProjects()
+    setProject(fresh)
+    setRssXml('')
+    setInputAnalysis(null)
+    setFileImportRows([])
+    notify('Local project data was cleared. A blank project is ready.')
+  }
+
+  async function copyShareUrl() {
+    if (!project) return
+    const share = makeProjectShareUrl(project, window.location.href)
+    setShareStatus(
+      share.tooLarge
+        ? `This project is too large for a share URL (${share.bytes}/${share.maxBytes} bytes). Download Project JSON instead.`
+        : `Share URL ready (${share.bytes}/${share.maxBytes} bytes).`,
+    )
+    if (share.tooLarge) {
+      notify('This project is too large for a share URL. Download Project JSON instead.')
+      return
+    }
+    await copyText(share.url, 'Share URL')
+  }
+
+  function printCurrentDraft() {
+    window.print()
+    updateProject((current) =>
+      appendActivity(
+        current,
+        makeActivity('draft-print-opened', 'Browser print dialog opened.', 'info'),
+      ),
+    )
   }
 
   if (isLoading || !project || !exports) {
@@ -721,13 +985,21 @@ function App() {
         eyebrow="01 Capture"
         title="Idea Brief"
         actions={
-          <Button
-            icon={<RefreshCw className="h-4 w-4" aria-hidden="true" />}
-            onClick={startFresh}
-            variant="secondary"
-          >
-            New project
-          </Button>
+          <>
+            <Button
+              icon={<RefreshCw className="h-4 w-4" aria-hidden="true" />}
+              onClick={startFresh}
+              variant="secondary"
+            >
+              Demo project
+            </Button>
+            <Button onClick={startBlankProject} variant="secondary">
+              Blank project
+            </Button>
+            <Button onClick={clearLocalData} variant="ghost">
+              Clear local data
+            </Button>
+          </>
         }
       >
         <div className="grid gap-4 lg:grid-cols-2">
@@ -824,13 +1096,15 @@ function App() {
                     onChange={(event: ChangeEvent<HTMLSelectElement>) =>
                       setNewSource((current) => ({
                         ...current,
-                        kind: event.target.value as SourceKind,
+                        kind: parseSourceKind(event.target.value),
                       }))
                     }
                   >
-                    <option value="note">Note</option>
-                    <option value="article">Article</option>
-                    <option value="rss">RSS</option>
+                    {sourceKindOptions.map((kind) => (
+                      <option key={kind} value={kind}>
+                        {kind === 'rss' ? 'RSS' : kind[0].toUpperCase() + kind.slice(1)}
+                      </option>
+                    ))}
                   </select>
                 </Field>
                 <Field label="Tags">
@@ -876,7 +1150,21 @@ function App() {
               </Button>
             </div>
 
-            <div className="grid gap-3 border border-stone-200 bg-stone-50 p-4">
+            <div
+              className={`grid gap-3 border p-4 ${
+                isDraggingSource ? 'border-teal-500 bg-teal-50' : 'border-stone-200 bg-stone-50'
+              }`}
+              onDragLeave={() => setIsDraggingSource(false)}
+              onDragOver={(event) => {
+                event.preventDefault()
+                setIsDraggingSource(true)
+              }}
+              onDrop={(event) => {
+                event.preventDefault()
+                setIsDraggingSource(false)
+                void importFiles(event.dataTransfer.files)
+              }}
+            >
               <Field
                 label="Paste source input"
                 hint="Briefs, RSS, Atom, OPML, article HTML, article text, URL-only sources, and project JSON are detected automatically."
@@ -889,6 +1177,49 @@ function App() {
                   onChange={(event) => setRssXml(event.target.value)}
                 />
               </Field>
+              <input
+                ref={fileInputRef}
+                accept=".txt,.md,.markdown,.xml,.rss,.atom,.opml,.html,.htm,.json,text/*,application/json,application/xml"
+                className="sr-only"
+                data-testid="source-file-input"
+                multiple
+                type="file"
+                onChange={(event) => {
+                  void importFiles(event.target.files ?? [])
+                  event.target.value = ''
+                }}
+              />
+              <div className="flex flex-wrap gap-2">
+                <Button onClick={() => fileInputRef.current?.click()} variant="secondary">
+                  Import files
+                </Button>
+                <Button onClick={readClipboardIntoInput} variant="secondary">
+                  Read clipboard
+                </Button>
+              </div>
+              <p className="text-xs text-stone-500">
+                Drop TXT, Markdown, RSS, Atom, OPML, HTML, or Project JSON files here. Unsupported
+                or oversized files are skipped with a reason.
+              </p>
+              {fileImportRows.length ? (
+                <div className="grid gap-2" data-testid="file-import-results">
+                  {fileImportRows.map((row) => (
+                    <div
+                      className={`border p-2 text-sm ${
+                        row.status === 'imported'
+                          ? 'border-teal-200 bg-teal-50 text-teal-950'
+                          : row.status === 'skipped'
+                            ? 'border-stone-200 bg-white text-stone-700'
+                            : 'border-amber-200 bg-amber-50 text-amber-950'
+                      }`}
+                      key={`${row.name}-${row.summary}`}
+                    >
+                      <strong>{row.name}</strong>
+                      <p>{row.summary}</p>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
               {importState === 'import-analyzing' ? (
                 <p className="flex items-center gap-2 text-sm text-stone-700">
                   <RefreshCw className="h-4 w-4 animate-spin" aria-hidden="true" />
@@ -1134,31 +1465,6 @@ function App() {
             <Metric label="Long sentences" value={analysis.longSentences.length} />
             <Metric label="Passive flags" value={analysis.passiveMatches.length} />
             <Metric label="Hedges" value={analysis.hedgeMatches.length} />
-            <div className="border border-stone-200 bg-stone-50 p-4">
-              <h3 className="font-semibold text-stone-950">Local LLM</h3>
-              <label className="mt-3 flex items-center gap-2 text-sm">
-                <input
-                  checked={project.llm.enabled}
-                  type="checkbox"
-                  onChange={(event) => updateLlm('enabled', event.target.checked)}
-                />
-                Use Ollama-style endpoint
-              </label>
-              <Field label="Endpoint">
-                <input
-                  className={inputClass()}
-                  value={project.llm.endpoint}
-                  onChange={(event) => updateLlm('endpoint', event.target.value)}
-                />
-              </Field>
-              <Field label="Model">
-                <input
-                  className={inputClass()}
-                  value={project.llm.model}
-                  onChange={(event) => updateLlm('model', event.target.value)}
-                />
-              </Field>
-            </div>
           </aside>
         </div>
       </Section>
@@ -1353,16 +1659,22 @@ function App() {
             >
               Project JSON
             </Button>
+            <Button
+              icon={<Copy className="h-4 w-4" aria-hidden="true" />}
+              onClick={copyShareUrl}
+              variant="secondary"
+            >
+              Share URL
+            </Button>
+            <Button onClick={printCurrentDraft} variant="ghost">
+              Print/PDF
+            </Button>
           </>
         }
       >
         <div className="grid gap-4">
           <div className="flex flex-wrap gap-2" role="tablist" aria-label="Export formats">
-            {[
-              ['substack', 'Substack'],
-              ['x', 'X thread'],
-              ['linkedin', 'LinkedIn'],
-            ].map(([id, label]) => (
+            {exportTabs.map(({ id, label }) => (
               <button
                 aria-selected={activeExport === id}
                 className={`border px-3 py-2 text-sm font-semibold ${
@@ -1373,12 +1685,17 @@ function App() {
                 key={id}
                 role="tab"
                 type="button"
-                onClick={() => setActiveExport(id as typeof activeExport)}
+                onClick={() => setActiveExport(id)}
               >
                 {label}
               </button>
             ))}
           </div>
+          {shareStatus ? (
+            <p className="border border-stone-200 bg-stone-50 p-3 text-sm text-stone-700">
+              {shareStatus}
+            </p>
+          ) : null}
           <textarea
             aria-label="Selected export"
             className={inputClass('min-h-96 resize-y font-mono text-sm leading-6')}
@@ -1392,6 +1709,58 @@ function App() {
           >
             Copy current export
           </Button>
+        </div>
+      </Section>
+
+      <Section id="settings" eyebrow="07 Settings" title="Workspace Settings">
+        <div className="grid gap-5 lg:grid-cols-2">
+          <div className="grid content-start gap-3 border border-stone-200 bg-stone-50 p-4">
+            <h3 className="font-semibold text-stone-950">Local LLM</h3>
+            <p className="text-sm text-stone-600">
+              Uses a browser-reachable Ollama-style endpoint. If CORS or the endpoint blocks the
+              request, the app falls back to the deterministic local draft.
+            </p>
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                checked={project.llm.enabled}
+                type="checkbox"
+                onChange={(event) => updateLlm('enabled', event.target.checked)}
+              />
+              Use local LLM when generating or polishing
+            </label>
+            <Field label="Endpoint">
+              <input
+                className={inputClass()}
+                value={project.llm.endpoint}
+                onChange={(event) => updateLlm('endpoint', event.target.value)}
+              />
+            </Field>
+            <Field label="Model">
+              <input
+                className={inputClass()}
+                value={project.llm.model}
+                onChange={(event) => updateLlm('model', event.target.value)}
+              />
+            </Field>
+          </div>
+          <div className="grid content-start gap-3 border border-stone-200 bg-stone-50 p-4">
+            <h3 className="font-semibold text-stone-950">Local Storage</h3>
+            <p className="text-sm text-stone-600">
+              Projects are stored in this browser. Download Project JSON before clearing local data
+              if you want a portable backup.
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <Button onClick={startFresh} variant="secondary">
+                Load demo project
+              </Button>
+              <Button onClick={startBlankProject} variant="secondary">
+                Start blank project
+              </Button>
+              <Button onClick={clearLocalData} variant="ghost">
+                Delete local projects
+              </Button>
+            </div>
+          </div>
         </div>
       </Section>
 
