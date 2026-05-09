@@ -78,7 +78,7 @@ make install-hooks
 ## Release
 
 ```bash
-make release VERSION=v0.1.0
+make release VERSION=v0.2.0
 ```
 
 Mode A has no Docker image, nginx deployment, runtime backend, or server metrics.

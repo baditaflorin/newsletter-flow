@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test'
+import pkg from '../../package.json' with { type: 'json' }
 
 test('homepage loads and generates a draft', async ({ page }) => {
   await page.goto('/')
@@ -8,7 +9,7 @@ test('homepage loads and generates a draft', async ({ page }) => {
     'href',
     'https://github.com/baditaflorin/newsletter-flow',
   )
-  await expect(page.getByText(/Version 0\.1\.0/)).toBeVisible()
+  await expect(page.getByText(`Version ${pkg.version}`)).toBeVisible()
   await expect(page.getByText(/Commit/)).toBeVisible()
 
   await page.getByTestId('idea-title').fill('A calmer publishing desk')

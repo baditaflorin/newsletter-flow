@@ -323,6 +323,16 @@ Fails or misleads: 4/10.
 
 The v1 app demos well with the curated default project, but real user input exposes three broad weaknesses: it does not detect input shape, it does not expose confidence, and it lets weak or empty evidence flow into confident drafts.
 
+## Phase 2 Result
+
+Cleanly useful without correction after Phase 2: 8/10.
+
+Partial but recoverable after Phase 2: 2/10.
+
+Fails or misleads after Phase 2: 0/10.
+
+The app now classifies the fixture set into idea briefs, RSS, Atom, OPML, HTML, URL-only source inputs, and truncated feeds before importing. Every inference carries confidence, reasoning, issues, provenance, and deterministic source IDs. URL-only and low-evidence imports no longer look like selected evidence, and capped or partial imports disclose what happened.
+
 ## Top 5 Logic Gaps
 
 1. **No input-shape detection.** RSS, Atom, OPML, HTML, URL-only sources, freeform idea briefs, and truncated XML all enter through the same narrow controls. The app reacts only after the user picked the right box.
