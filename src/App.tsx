@@ -41,7 +41,6 @@ import { useToast } from './components/Toast'
 const repoUrl = 'https://github.com/baditaflorin/newsletter-flow'
 const paypalUrl = 'https://www.paypal.com/paypalme/florinbadita'
 const liveUrl = 'https://baditaflorin.github.io/newsletter-flow/'
-const commitApiUrl = 'https://api.github.com/repos/baditaflorin/newsletter-flow/commits/main'
 
 const blankSource: Omit<ResearchSource, 'id' | 'selected'> = {
   kind: 'note',
@@ -155,28 +154,11 @@ function sourceHasEvidence(source: ResearchSource) {
   return Boolean(source.title.trim() && (source.content.trim() || source.summary.trim()))
 }
 
-async function fetchLatestCommit() {
-  const response = await fetch(commitApiUrl, {
-    headers: { Accept: 'application/vnd.github+json' },
-  })
-
-  if (!response.ok) throw new Error(`GitHub commit lookup failed with ${response.status}`)
-
-  const payload = (await response.json()) as { sha?: string }
-  return payload.sha?.slice(0, 7) || __APP_COMMIT__
-}
-
 function App() {
   const { notify } = useToast()
   const { data, isLoading } = useQuery({
     queryKey: ['latest-project'],
     queryFn: loadLatestProject,
-  })
-  const { data: latestCommit } = useQuery({
-    queryKey: ['github-latest-commit'],
-    queryFn: fetchLatestCommit,
-    retry: false,
-    staleTime: 5 * 60 * 1000,
   })
 
   const [project, setProject] = useState<NewsletterProject | null>(null)
@@ -273,7 +255,7 @@ function App() {
     [project, searchQuery],
   )
   const selectedCount = project?.sources.filter((source) => source.selected).length ?? 0
-  const displayCommit = latestCommit ?? __APP_COMMIT__
+  const displayCommit = __APP_COMMIT__
   const workspaceState =
     !project?.sources.length && !project?.draft
       ? 'loaded-empty'

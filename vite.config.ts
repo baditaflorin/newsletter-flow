@@ -6,7 +6,7 @@ import tailwindcss from '@tailwindcss/vite'
 const pkg = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8')) as {
   version: string
 }
-const fallbackCommit = process.env.VITE_APP_COMMIT || '54c10b9'
+const fallbackCommit = process.env.VITE_APP_COMMIT || '52a7193'
 
 // https://vite.dev/config/
 export default defineConfig({
