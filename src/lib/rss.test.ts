@@ -20,7 +20,7 @@ describe('parseRssItems', () => {
       kind: 'rss',
       title: 'Local Writing Systems',
       url: 'https://example.com/local-writing',
-      selected: true,
+      selected: false,
     })
     expect(items[0].summary).toContain('local workflows')
   })
