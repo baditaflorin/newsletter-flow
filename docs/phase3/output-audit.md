@@ -40,3 +40,28 @@ Status legend:
 2. Shareable state for small projects is missing.
 3. Print output is not intentionally usable.
 4. Automation-ready documentation is missing.
+
+## After Implementation
+
+| Exit path                  | Final status | Evidence                                                                         |
+| -------------------------- | ------------ | -------------------------------------------------------------------------------- |
+| Substack Markdown download | Green        | Smoke test clicks Markdown download.                                             |
+| Project JSON download      | Green        | Playwright downloads and re-imports Project JSON.                                |
+| X thread copy              | Green        | Shared copy handler is covered by existing export behavior and failure handling. |
+| LinkedIn copy              | Green        | Same export copy path.                                                           |
+| Copy subject line          | Green        | Same clipboard utility with recoverable failure handling.                        |
+| CSV export                 | Out of scope | ADR 0062 marks CSV out of scope.                                                 |
+| Shareable URL              | Green        | Playwright loads a small project from a hash share URL.                          |
+| Downloadable state file    | Green        | Project JSON contract documented in `docs/project-json.md`.                      |
+| Print/PDF view             | Green        | Print command and print CSS hide chrome and keep draft/export content.           |
+| Screenshot export          | Out of scope | ADR 0062 marks screenshot export out of scope.                                   |
+| Embed code                 | Out of scope | ADR 0062 marks embed code out of scope.                                          |
+| API/curl-ready output      | Green        | Project JSON automation contract and Node/Python snippets documented.            |
+| Unsplash search link       | Green        | Existing link remains in smoke-covered app shell.                                |
+
+Final counts:
+
+- Green: 10
+- Yellow: 0
+- Red: 0
+- Out of scope: 3

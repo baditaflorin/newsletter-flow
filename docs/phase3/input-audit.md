@@ -46,3 +46,31 @@ Status legend:
 3. A user who receives a project from someone else has no obvious import or share-link path.
 4. Clipboard import is asymmetric with clipboard export.
 5. Mobile users cannot use the Files picker.
+
+## After Implementation
+
+| Entry point                          | Final status | Evidence                                                                       |
+| ------------------------------------ | ------------ | ------------------------------------------------------------------------------ |
+| Manual idea fields                   | Green        | Playwright fills fields, generates a draft, and reload persistence is covered. |
+| Manual source form                   | Green        | Title-only sources are warning-backed and source evidence checks are shared.   |
+| Paste text/HTML/XML/URL/project JSON | Green        | Phase 2 fixture suite remains the floor.                                       |
+| File upload                          | Green        | Playwright imports real article HTML through `source-file-input`.              |
+| Drag and drop                        | Green        | Same `importFiles` handler accepts dropped text-like files.                    |
+| Multi-file import                    | Green        | Batch handler reads multiple files and reports imported/skipped/error rows.    |
+| Folder import                        | Out of scope | ADR 0061 marks this permanently out of scope for Phase 3 Mode A.               |
+| Mobile file picker                   | Green        | Browser file input uses `multiple` and text-like accepts for mobile Files.     |
+| Clipboard read                       | Green        | `Read clipboard` handles permission failure with paste fallback.               |
+| Plain textarea paste fallback        | Green        | Unchanged and tested through fixtures.                                         |
+| URL input                            | Green        | URL-only remains unselected and guidance says to paste article text/HTML.      |
+| Image input                          | Out of scope | ADR 0061 keeps local image file processing out of scope.                       |
+| Sample/demo loader                   | Green        | Demo project and blank project are separate controls.                          |
+| Deep links/imported state            | Green        | Share URL hash import is tested by Playwright.                                 |
+| Restored autosave                    | Green        | Playwright reloads after file import and sees the imported source.             |
+| Project JSON re-import               | Green        | Playwright downloads Project JSON and imports it through file input.           |
+
+Final counts:
+
+- Green: 14
+- Yellow: 0
+- Red: 0
+- Out of scope: 2

@@ -24,13 +24,8 @@ import { analyzeDraft, composeDraft, polishDraft, requestLocalLlm } from './feat
 import { downloadText, makePlatformExports, projectFilename } from './features/exports'
 import { generateImageBrief } from './features/images'
 import { analyzeNewsletterInputCached, inputCacheStats, searchSources } from './features/research'
-import {
-  clearLocalProjects,
-  createBlankWorkspace,
-  loadLatestProject,
-  resetProject,
-  saveProject,
-} from './features/workspace'
+import { clearLocalProjects, loadLatestProject, saveProject } from './features/workspace'
+import { createBlankProject, createDefaultProject } from './lib/demo'
 import { makeId, nowIso } from './lib/ids'
 import { makeProjectShareUrl, parseProjectShareHash } from './lib/project-io'
 import { parseSourceKind, sourceHasEvidence, sourceKindOptions } from './lib/sources'
@@ -830,20 +825,22 @@ function App() {
   }
 
   async function startFresh() {
-    const fresh = await resetProject()
+    const fresh = createDefaultProject()
     setProject(fresh)
     setRssXml('')
     setInputAnalysis(null)
     setFileImportRows([])
+    saveProject(fresh).catch(() => setSaveState('error'))
     notify('The demo project is ready.')
   }
 
   async function startBlankProject() {
-    const fresh = await createBlankWorkspace()
+    const fresh = createBlankProject()
     setProject(fresh)
     setRssXml('')
     setInputAnalysis(null)
     setFileImportRows([])
+    saveProject(fresh).catch(() => setSaveState('error'))
     notify('A blank project is ready.')
   }
 

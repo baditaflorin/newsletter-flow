@@ -30,18 +30,6 @@ export async function saveProject(project: NewsletterProject) {
   await db.projects.put(project)
 }
 
-export async function resetProject() {
-  const fresh = createDefaultProject()
-  await db.projects.put(fresh)
-  return fresh
-}
-
-export async function createBlankWorkspace() {
-  const fresh = createBlankProject()
-  await db.projects.put(fresh)
-  return fresh
-}
-
 export async function clearLocalProjects() {
   await db.projects.clear()
   const fresh = createBlankProject()

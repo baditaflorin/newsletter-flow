@@ -46,7 +46,7 @@ Mode B would only become useful if the project ships a public curated research c
 ## What Did Not Work
 
 - Embedding `git rev-parse HEAD` directly in the bundle created a commit/build loop because every post-commit build changed the asset hash.
-- The fix was to display the latest public GitHub commit through the unauthenticated GitHub commits endpoint, with a static fallback.
+- The first fix used the unauthenticated GitHub commits endpoint with a static fallback; Phase 2 replaced that with static build metadata because the public API can rate-limit Pages visitors.
 - Prettier initially checked generated `docs/index.html` and `docs/404.html`, which made generated Pages output fight the formatter.
 - The fix was to ignore generated Pages files while still formatting hand-written docs.
 
@@ -65,7 +65,7 @@ Mode B would only become useful if the project ships a public curated research c
 
 ## Next Three Improvements
 
-1. Add project import with zod validation and conflict-safe merge behavior.
+1. Add richer relevance scoring that understands audience and angle instead of mostly term overlap.
 2. Add optional Transformers.js or WASM embeddings behind an explicit lazy-loaded research action.
 3. Add a richer image workflow with local uploads, crop/resize, and exportable social card variants.
 

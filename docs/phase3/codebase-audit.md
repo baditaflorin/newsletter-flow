@@ -68,3 +68,27 @@ Count: 0 in `src/`, `tests/`, `README.md`, and hand-written docs excluding vendo
 - TODO/FIXME/XXX/HACK: 0
 - Type safety holes: 4 product holes, 1 accepted test matcher pattern
 - Real-user path test holes: 5
+
+## After Implementation
+
+| Metric                                    | Baseline |               Final |
+| ----------------------------------------- | -------: | ------------------: |
+| DRY violations in core modules            |        4 |          1 accepted |
+| SOLID violations requiring Phase 3 action |        4 |          1 accepted |
+| Dead code findings                        |        0 |                   0 |
+| TODO/FIXME/XXX/HACK                       |        0 |                   0 |
+| Untracked product type-safety holes       |        4 |                   0 |
+| Real-user path test holes                 |        5 | 0 for Phase 3 scope |
+
+Resolved:
+
+- Source evidence checks moved to `src/lib/sources.ts`.
+- Project state validation moved to `src/lib/project-schema.ts`.
+- Project JSON/hash IO moved to `src/lib/project-io.ts`.
+- UI source-kind and export-tab casts were replaced by typed helpers.
+- Project JSON import now goes through schema-backed normalization.
+
+Accepted:
+
+- XML parser casts remain boundary code under ADR 0069.
+- `src/App.tsx` remains a large single-screen module; ADR 0064 rejects a broad component split in Phase 3 because it would add churn without directly improving stranger usability.

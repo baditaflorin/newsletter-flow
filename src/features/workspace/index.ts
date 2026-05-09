@@ -1,7 +1,1 @@
-export {
-  clearLocalProjects,
-  createBlankWorkspace,
-  loadLatestProject,
-  resetProject,
-  saveProject,
-} from '../../db/projects'
+export { clearLocalProjects, loadLatestProject, saveProject } from '../../db/projects'

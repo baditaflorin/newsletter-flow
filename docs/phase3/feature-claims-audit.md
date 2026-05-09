@@ -37,3 +37,20 @@ Sources audited: `README.md`, in-app copy, ADRs, and postmortems.
 3. Phase 1 postmortem still references the removed GitHub commits endpoint.
 4. Project JSON is not described as the canonical backup/round-trip format.
 5. No README test directly proves project JSON round-trip or restored autosave.
+
+## After Implementation
+
+| Claim area             | Final status | Evidence                                                                                           |
+| ---------------------- | ------------ | -------------------------------------------------------------------------------------------------- |
+| Input formats          | Green        | README now names paste, file, drag-drop, RSS, Atom, OPML, HTML, URL-only, and Project JSON.        |
+| Project JSON backup    | Green        | README and `docs/project-json.md` document the contract; Playwright round-trips it.                |
+| Local LLM support      | Green        | README limitation explains browser-reachable endpoint requirement and fallback.                    |
+| Static commit metadata | Green        | Phase 1 postmortem now reflects the later static metadata fix.                                     |
+| Offline/PWA            | Green        | README narrows the claim to local-first/browser storage instead of overpromising offline behavior. |
+| Autosave restore       | Green        | README claim is covered by Playwright reload test.                                                 |
+
+Final counts:
+
+- Green: 15
+- Yellow: 0
+- Red: 0
