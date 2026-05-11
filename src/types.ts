@@ -152,6 +152,17 @@ export interface DraftAnalysis {
   passiveMatches: string[]
   hedgeMatches: string[]
   repeatedWords: string[]
+  readability: ReadabilityScores
+}
+
+export interface ReadabilityScores {
+  fleschReadingEase: number
+  fleschKincaidGrade: number
+  gunningFog: number
+  averageSentenceLength: number
+  averageSyllablesPerWord: number
+  complexWordRatio: number
+  gradeLabel: string
 }
 
 export interface PolishResult {

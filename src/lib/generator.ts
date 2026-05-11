@@ -9,6 +9,7 @@ import type {
 } from '../types'
 import { PROJECT_SCHEMA_VERSION } from '../types'
 import { projectToJson } from './project-schema'
+import { readabilityScores } from './readability'
 import { sentenceSplit, truncate, wordTokens } from './text'
 
 const hedges = ['maybe', 'probably', 'basically', 'actually', 'just', 'very', 'really', 'somewhat']
@@ -130,6 +131,7 @@ export function analyzeDraft(text: string): DraftAnalysis {
       .sort((a, b) => b[1] - a[1])
       .slice(0, 8)
       .map(([word]) => word),
+    readability: readabilityScores(text),
   }
 }
 

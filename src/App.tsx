@@ -1471,6 +1471,10 @@ function App() {
             <Metric label="Long sentences" value={analysis.longSentences.length} />
             <Metric label="Passive flags" value={analysis.passiveMatches.length} />
             <Metric label="Hedges" value={analysis.hedgeMatches.length} />
+            <Metric label="Flesch reading ease" value={analysis.readability.fleschReadingEase} />
+            <Metric label="Reading grade" value={analysis.readability.gradeLabel} />
+            <Metric label="FK grade level" value={analysis.readability.fleschKincaidGrade} />
+            <Metric label="Gunning Fog" value={analysis.readability.gunningFog} />
           </aside>
         </div>
       </Section>
