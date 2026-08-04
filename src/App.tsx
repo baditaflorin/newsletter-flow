@@ -29,7 +29,7 @@ import { createBlankProject, createDefaultProject } from './lib/demo'
 import { makeId, nowIso } from './lib/ids'
 import { makeProjectShareUrl, parseProjectShareHash } from './lib/project-io'
 import { parseSourceKind, sourceHasEvidence, sourceKindOptions } from './lib/sources'
-import { truncate } from './lib/text'
+import { sanitizeUrl, truncate } from './lib/text'
 import type {
   ActivityEntry,
   AudienceSegment,
@@ -1318,108 +1318,113 @@ function App() {
           </div>
 
           <div className="grid gap-3 content-start">
-            {filteredSources.map((source) => (
-              <article className="border border-stone-200 bg-white p-4" key={source.id}>
-                <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <p className="text-xs font-bold uppercase text-stone-500">
-                      {source.kind}
-                      {source.provenance?.shape
-                        ? ` · ${source.provenance.shape.replaceAll('_', ' ')}`
-                        : ''}
-                    </p>
-                    <h3 className="mt-1 text-lg font-semibold text-stone-950">{source.title}</h3>
-                    {source.url ? (
+            {filteredSources.map((source) => {
+              const safeSourceUrl = sanitizeUrl(source.url)
+              const safeDiscussionUrl = sanitizeUrl(source.provenance?.discussionUrl)
+              return (
+                <article className="border border-stone-200 bg-white p-4" key={source.id}>
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-xs font-bold uppercase text-stone-500">
+                        {source.kind}
+                        {source.provenance?.shape
+                          ? ` · ${source.provenance.shape.replaceAll('_', ' ')}`
+                          : ''}
+                      </p>
+                      <h3 className="mt-1 text-lg font-semibold text-stone-950">{source.title}</h3>
+                      {safeSourceUrl ? (
+                        <a
+                          className="mt-1 inline-flex items-center gap-1 break-all text-sm text-teal-700 hover:text-teal-900"
+                          href={safeSourceUrl}
+                          rel="noreferrer"
+                          target="_blank"
+                        >
+                          {source.url}
+                          <ExternalLink className="h-3 w-3" aria-hidden="true" />
+                        </a>
+                      ) : null}
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        onClick={() => toggleSource(source.id)}
+                        variant={source.selected ? 'primary' : 'secondary'}
+                      >
+                        {source.selected ? 'Selected' : 'Use'}
+                      </Button>
+                      <Button
+                        aria-label={`Remove ${source.title}`}
+                        icon={<X className="h-4 w-4" aria-hidden="true" />}
+                        onClick={() => removeSource(source.id)}
+                        variant="ghost"
+                      >
+                        Remove
+                      </Button>
+                    </div>
+                  </div>
+                  <p className="mt-3 text-sm text-stone-700">
+                    {source.summary || truncate(source.content, 220)}
+                  </p>
+                  <div className="mt-3 flex flex-wrap gap-2 text-xs">
+                    <span className="border border-stone-200 bg-stone-50 px-2 py-1 text-stone-700">
+                      confidence {source.confidence?.label ?? 'low'} (
+                      {source.confidence?.score ?? 0})
+                    </span>
+                    {source.provenance?.publishedAtIso ? (
+                      <span className="border border-stone-200 bg-stone-50 px-2 py-1 text-stone-700">
+                        {source.provenance.publishedAtIso.slice(0, 10)}
+                      </span>
+                    ) : null}
+                    {safeDiscussionUrl ? (
                       <a
-                        className="mt-1 inline-flex items-center gap-1 break-all text-sm text-teal-700 hover:text-teal-900"
-                        href={source.url}
+                        className="border border-stone-200 bg-stone-50 px-2 py-1 text-teal-700"
+                        href={safeDiscussionUrl}
                         rel="noreferrer"
                         target="_blank"
                       >
-                        {source.url}
-                        <ExternalLink className="h-3 w-3" aria-hidden="true" />
+                        discussion
                       </a>
                     ) : null}
                   </div>
-                  <div className="flex gap-2">
-                    <Button
-                      onClick={() => toggleSource(source.id)}
-                      variant={source.selected ? 'primary' : 'secondary'}
-                    >
-                      {source.selected ? 'Selected' : 'Use'}
-                    </Button>
-                    <Button
-                      aria-label={`Remove ${source.title}`}
-                      icon={<X className="h-4 w-4" aria-hidden="true" />}
-                      onClick={() => removeSource(source.id)}
-                      variant="ghost"
-                    >
-                      Remove
-                    </Button>
-                  </div>
-                </div>
-                <p className="mt-3 text-sm text-stone-700">
-                  {source.summary || truncate(source.content, 220)}
-                </p>
-                <div className="mt-3 flex flex-wrap gap-2 text-xs">
-                  <span className="border border-stone-200 bg-stone-50 px-2 py-1 text-stone-700">
-                    confidence {source.confidence?.label ?? 'low'} ({source.confidence?.score ?? 0})
-                  </span>
-                  {source.provenance?.publishedAtIso ? (
-                    <span className="border border-stone-200 bg-stone-50 px-2 py-1 text-stone-700">
-                      {source.provenance.publishedAtIso.slice(0, 10)}
-                    </span>
-                  ) : null}
-                  {source.provenance?.discussionUrl ? (
-                    <a
-                      className="border border-stone-200 bg-stone-50 px-2 py-1 text-teal-700"
-                      href={source.provenance.discussionUrl}
-                      rel="noreferrer"
-                      target="_blank"
-                    >
-                      discussion
-                    </a>
-                  ) : null}
-                </div>
-                {source.issues?.length ? (
-                  <div className="mt-3 grid gap-2">
-                    {source.issues.map((issue) => (
-                      <div
-                        className="border border-amber-200 bg-amber-50 p-2 text-sm text-amber-950"
-                        key={issue.code}
-                      >
-                        <strong>{issue.what}</strong>
-                        <p>{issue.nextStep}</p>
-                      </div>
-                    ))}
-                  </div>
-                ) : null}
-                {source.tags.length ? (
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    {source.tags.map((tag) => (
-                      <span
-                        className="border border-teal-200 bg-teal-50 px-2 py-1 text-xs text-teal-900"
-                        key={tag}
-                      >
-                        {tag}
-                      </span>
-                    ))}
-                  </div>
-                ) : null}
-                {source.reasoning?.length ? (
-                  <details className="mt-3 text-sm text-stone-600">
-                    <summary className="cursor-pointer font-medium text-stone-800">
-                      Why this source looks this way
-                    </summary>
-                    <ul className="mt-2 grid gap-1">
-                      {source.reasoning.map((reason) => (
-                        <li key={reason}>{reason}</li>
+                  {source.issues?.length ? (
+                    <div className="mt-3 grid gap-2">
+                      {source.issues.map((issue) => (
+                        <div
+                          className="border border-amber-200 bg-amber-50 p-2 text-sm text-amber-950"
+                          key={issue.code}
+                        >
+                          <strong>{issue.what}</strong>
+                          <p>{issue.nextStep}</p>
+                        </div>
                       ))}
-                    </ul>
-                  </details>
-                ) : null}
-              </article>
-            ))}
+                    </div>
+                  ) : null}
+                  {source.tags.length ? (
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {source.tags.map((tag) => (
+                        <span
+                          className="border border-teal-200 bg-teal-50 px-2 py-1 text-xs text-teal-900"
+                          key={tag}
+                        >
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+                  ) : null}
+                  {source.reasoning?.length ? (
+                    <details className="mt-3 text-sm text-stone-600">
+                      <summary className="cursor-pointer font-medium text-stone-800">
+                        Why this source looks this way
+                      </summary>
+                      <ul className="mt-2 grid gap-1">
+                        {source.reasoning.map((reason) => (
+                          <li key={reason}>{reason}</li>
+                        ))}
+                      </ul>
+                    </details>
+                  ) : null}
+                </article>
+              )
+            })}
           </div>
         </div>
       </Section>
