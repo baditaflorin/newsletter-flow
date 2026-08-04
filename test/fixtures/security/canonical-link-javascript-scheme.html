@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <title>Malicious Canonical Link Regression Fixture</title>
+    <link rel="canonical" href="javascript:alert(document.cookie)" />
+    <meta name="author" content="Security Test" />
+  </head>
+  <body>
+    <article>
+      <h1>Malicious Canonical Link Regression Fixture</h1>
+      <p>
+        This fixture exists to regression-test that a source imported from pasted HTML never renders
+        a javascript: URL as a clickable link. The canonical link above intentionally uses a
+        javascript: scheme instead of an http(s) URL.
+      </p>
+      <p>
+        Extra filler content so the importer has enough body text to treat this as a usable article
+        source instead of skipping it for low content confidence.
+      </p>
+    </article>
+  </body>
+</html>
